@@ -1,3 +1,4 @@
+using FontBook.Core.Classification;
 using FontBook.Core.Models;
 using FontBook.Core.Services;
 using FontBook.Infrastructure.Fonts.Files;
@@ -79,6 +80,12 @@ public sealed class WindowsFontDiscoveryService(IInstalledFontFileSource fileSou
                         d.FilePath,
                         d.RenderFamilyName))
                     .ToList();
-                return new FontFamilyInfo(group.First().Data.FamilyName, group.Key.Source, styles);
+                // Classify the family by its regular style (falling back to any style).
+                var reference = group.Select(f => f.Data).FirstOrDefault(d => d is { Weight: 400, Width: 5, IsItalic: false })
+                                ?? group.First().Data;
+                var category = FontClassifier.Classify(new FontClassificationHints(
+                    reference.FamilyName, reference.IbmFamilyClass, reference.Panose ?? [], reference.IsFixedPitch));
+
+                return new FontFamilyInfo(group.First().Data.FamilyName, group.Key.Source, styles) { DetectedCategory = category };
             })];
 }

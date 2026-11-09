@@ -58,6 +58,15 @@ public sealed class DatabaseInitializer(SqliteConnectionFactory connectionFactor
             imported_at   TEXT NOT NULL
         );
         """,
+
+        // Version 3 — categories the user chose by hand (overriding automatic detection).
+        """
+        CREATE TABLE font_categories (
+            font_key   TEXT PRIMARY KEY NOT NULL,
+            category   TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+        """,
     ];
 
     /// <summary>The schema version this build of FontBook expects.</summary>

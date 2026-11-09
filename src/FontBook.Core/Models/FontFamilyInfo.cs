@@ -28,6 +28,9 @@ public sealed record FontFamilyInfo
     /// <summary>When the family was added to FontBook (used by "Recently Added"). Null if unknown.</summary>
     public DateTimeOffset? AddedAt { get; init; }
 
+    /// <summary>Category detected automatically from the font's metadata (users can override it).</summary>
+    public FontCategory DetectedCategory { get; init; } = FontCategory.Other;
+
     /// <summary>True when this entry comes from the temporary sample data set, not real discovery.</summary>
     public bool IsSample { get; init; }
 }

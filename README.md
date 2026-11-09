@@ -52,6 +52,10 @@ Deleting that folder resets FontBook to a fresh state. It never touches your ins
   (originals untouched), detects duplicates by content, rejects damaged files, and previews them without installing.
   Imported fonts appear under **Imported Fonts** and **Recently Added** (last 30 days).
 - **Remove from Font Vault** (preview header or right-click) deletes only FontBook's copy, after confirmation.
+- **Style categories:** every font is sorted into Serif, Sans Serif, Monospace, Script & Handwritten,
+  Display & Fun, Symbol or Other. FontBook detects this from data inside the font file (IBM font class, PANOSE,
+  fixed-pitch flag), falling back to name clues. **Filter chips** above the list combine with any section
+  (e.g. User Fonts + Script). Click the category next to a font's name in the preview to change it; your choice is saved.
 - **Install / uninstall for your account** (Milestone 3): **Install** on Vault fonts copies the font into your
   per-user fonts folder, registers it under `HKCU` and notifies apps. **Uninstall…** on User Fonts asks first and can
   keep a copy in the Vault. System fonts can never be uninstalled from FontBook. *Status: unit-tested with fakes;
@@ -80,6 +84,7 @@ src/
     Data/                      Repository contracts + setting keys
     Library/                   FontLibraryService: favorites, collection membership, filtering
     Collections/               CollectionService: naming and validation rules
+    Classification/            FontClassifier: automatic style categories
     Search/                    FontSearch: search matching rules
   FontBook.Infrastructure/     Implementations of the Core contracts
     Database/                  SQLite connection, schema migrations, repositories

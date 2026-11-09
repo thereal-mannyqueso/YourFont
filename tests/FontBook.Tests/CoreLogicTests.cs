@@ -151,6 +151,7 @@ public sealed class FontLibraryServiceTests
         new EmptyVault(),
         new SqliteFavoritesRepository(db.Connections),
         new SqliteCollectionRepository(db.Connections),
+        new SqliteCategoryRepository(db.Connections),
         new FixedTimeProvider(Now));
 
     private sealed class FixedDiscovery(IReadOnlyList<FontFamilyInfo> families) : IFontDiscoveryService

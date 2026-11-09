@@ -142,6 +142,7 @@ public sealed class FontVaultTests : IDisposable
             _vault,
             new SqliteFavoritesRepository(_db.Connections),
             new SqliteCollectionRepository(_db.Connections),
+            new SqliteCategoryRepository(_db.Connections),
             TimeProvider.System);
 
         await library.LoadAsync();

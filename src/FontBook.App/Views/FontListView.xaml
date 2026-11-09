@@ -65,6 +65,27 @@
                 </Border>
             </Grid>
             <TextBlock Text="{Binding SectionSubtitle}" Style="{StaticResource Text.Caption}" Margin="0,2,0,0" />
+
+            <!-- Category filter chips -->
+            <ItemsControl ItemsSource="{Binding CategoryChips}" Margin="0,12,0,0" Focusable="False"
+                          AutomationProperties.Name="Filter by category">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="{x:Type vm:CategoryChoiceViewModel}">
+                        <RadioButton Style="{StaticResource Chip}" IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                     AutomationProperties.Name="{Binding Label, StringFormat=Category {0}}">
+                            <TextBlock>
+                                <Run Text="{Binding Label, Mode=OneWay}" />
+                                <Run Text="{Binding Count, Mode=OneWay}" FontSize="11" />
+                            </TextBlock>
+                        </RadioButton>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
         </StackPanel>
 
         <ListBox x:Name="FontsList" Grid.Row="1"
@@ -140,7 +161,7 @@
                                        FontWeight="{Binding PreviewWeight}" FontStyle="{Binding PreviewStyle}" FontStretch="{Binding PreviewStretch}"
                                        LineStackingStrategy="BlockLineHeight" LineHeight="24"
                                        Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis" />
-                            <TextBlock Text="{Binding StyleCountText}" Style="{StaticResource Text.Caption}" Margin="0,1,0,0" />
+                            <TextBlock Text="{Binding ListCaption}" Style="{StaticResource Text.Caption}" Margin="0,1,0,0" />
                         </StackPanel>
 
                         <Button Grid.Column="1" Style="{StaticResource FavoriteButton}"

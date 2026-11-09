@@ -95,6 +95,7 @@ toward Core, so business rules can be tested without starting the UI.
 | `favorites` | font keys the user starred |
 | `collections` | user collections (names are unique, ignoring case) |
 | `collection_fonts` | which fonts are in which collection (deleted automatically with the collection) |
+| `font_categories` (v3) | categories the user chose by hand, overriding detection |
 | `vault_files` (v2) | one row per imported file: content hash, stored name, original name/path, size, import time |
 
 ### 8. Font keys
@@ -155,7 +156,24 @@ show only their default style for now; named instances need the DirectWrite rend
 - **Library:** `FontLibraryService` merges installed and Vault families; `RefreshVaultAsync` reloads just the Vault after changes.
 - **Keys:** Vault fonts use `vault:<family>` keys, so favorites and collections never mix them up with installed fonts.
 
-## Planned: installation (Milestone 3)
+## Style categories
+
+- **Detection** (`Core/Classification/FontClassifier`) is a pure function, easy to test and tune. Evidence, strongest first:
+  symbol/monospace signals (`post.isFixedPitch`, IBM class 12, PANOSE pictorial), then the designer's IBM font class
+  (OS/2 `sFamilyClass`) and PANOSE family/serif bytes, then clues in the family name (whole-word "mono"/"code",
+  "script", "sans", plus a short list of well-known families) for fonts whose metadata is blank. Otherwise **Other**.
+  The reader extracts the raw values; discovery classifies each family by its regular style.
+- **Manual overrides** live in `font_categories` (keyed by font key). `FontLibraryService.GetCategory` returns the
+  override if present, else the detected category. Choosing "Automatic" deletes the override.
+- **UI:** filter chips (`CategoryChoiceViewModel`, selection-driven like the sidebar) combine with the current section and
+  search. If a manual change moves the selected font out of the active filter, the filter resets to All so it stays visible.
+
+## Installation (Milestone 3)
+
+Implemented in `Infrastructure/Fonts/Installation/UserFontInstaller` behind `IUserFontRegistry` and `IFontResourceApi`
+(fakes in tests, so tests never change the real system). *A real install/uninstall against Windows hasn't been verified yet.*
+
+## Planned: installation (Milestone 3) — original design notes
 `IFontInstallationService` documents the intended, supported mechanism: per-user installation
 (Windows 10 1809+, no admin rights). Copy into `%LOCALAPPDATA%\Microsoft\Windows\Fonts`, register under
 `HKCU\Software\Microsoft\Windows NT\CurrentVersion\Fonts`, then call `AddFontResourceEx` and

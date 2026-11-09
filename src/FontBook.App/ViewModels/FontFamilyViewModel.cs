@@ -68,4 +68,18 @@ public sealed partial class FontFamilyViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _isFavorite;
+
+    /// <summary>Category shown for this family (manual choice or automatic detection).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CategoryName), nameof(ListCaption))]
+    private FontCategory _category = FontCategory.Other;
+
+    /// <summary>True when the user chose the category by hand.</summary>
+    [ObservableProperty]
+    private bool _isCategoryManual;
+
+    public string CategoryName => Category.DisplayName();
+
+    /// <summary>Second line in the font list, e.g. "4 styles · Serif".</summary>
+    public string ListCaption => $"{StyleCountText}  ·  {Category.ShortName()}";
 }

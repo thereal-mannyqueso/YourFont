@@ -14,6 +14,9 @@ namespace FontBook.Infrastructure.Fonts.Files;
 /// <param name="Weight">OS/2 usWeightClass, 1–1000.</param>
 /// <param name="Width">OS/2 usWidthClass, 1–9.</param>
 /// <param name="IsItalic">Italic or oblique.</param>
+/// <param name="IbmFamilyClass">OS/2 sFamilyClass high byte (0 = unclassified).</param>
+/// <param name="Panose">OS/2 PANOSE bytes (all zeros when not set).</param>
+/// <param name="IsFixedPitch">post.isFixedPitch (monospaced).</param>
 public sealed record FontFaceData(
     string FilePath,
     string FamilyName,
@@ -21,7 +24,10 @@ public sealed record FontFaceData(
     string RenderFamilyName,
     int Weight,
     int Width,
-    bool IsItalic);
+    bool IsItalic,
+    int IbmFamilyClass = 0,
+    IReadOnlyList<byte>? Panose = null,
+    bool IsFixedPitch = false);
 
 /// <summary>
 /// Minimal, read-only OpenType/TrueType reader (TTF, OTF, TTC/OTC collections).
@@ -39,6 +45,7 @@ public static class FontFileReader
     private const uint TagName = 0x6E616D65; // 'name'
     private const uint TagOs2 = 0x4F532F32;  // 'OS/2'
     private const uint TagHead = 0x68656164; // 'head'
+    private const uint TagPost = 0x706F7374; // 'post'
     private const uint SfntTrueType = 0x00010000;
     private const uint SfntOpenType = 0x4F54544F; // 'OTTO'
     private const uint SfntApple = 0x74727565;    // 'true'
@@ -86,7 +93,8 @@ public static class FontFileReader
 
         var numTables = ReadUInt16(stream, offset + 4);
         var directory = ReadBytes(stream, offset + 12, numTables * 16);
-        long nameOffset = -1, os2Offset = -1, headOffset = -1;
+        long nameOffset = -1, os2Offset = -1, headOffset = -1, postOffset = -1;
+        var postLength = 0;
         int nameLength = 0, os2Length = 0;
         for (var i = 0; i < numTables; i++)
         {
@@ -99,6 +107,7 @@ public static class FontFileReader
                 case TagName: nameOffset = tableOffset; nameLength = tableLength; break;
                 case TagOs2: os2Offset = tableOffset; os2Length = tableLength; break;
                 case TagHead: headOffset = tableOffset; break;
+                case TagPost: postOffset = tableOffset; postLength = tableLength; break;
             }
         }
 
@@ -114,13 +123,16 @@ public static class FontFileReader
         var style = names.GetValueOrDefault(17) ?? legacyStyle;
         var renderFamily = names.GetValueOrDefault(21) ?? family;
 
-        int weight = 400, width = 5;
+        int weight = 400, width = 5, familyClass = 0;
         var italic = false;
+        byte[] panose = new byte[10];
         if (os2Offset >= 0 && os2Length >= 64)
         {
             var os2 = ReadBytes(stream, os2Offset, 64);
             weight = BinaryPrimitives.ReadUInt16BigEndian(os2.AsSpan(4));
             width = BinaryPrimitives.ReadUInt16BigEndian(os2.AsSpan(6));
+            familyClass = os2[30]; // sFamilyClass: high byte = class, low byte = subclass
+            panose = os2.AsSpan(32, 10).ToArray();
             var fsSelection = BinaryPrimitives.ReadUInt16BigEndian(os2.AsSpan(62));
             italic = (fsSelection & 0x0001) != 0 || (fsSelection & 0x0200) != 0; // ITALIC or OBLIQUE
         }
@@ -137,10 +149,15 @@ public static class FontFileReader
             weight *= 100;
         }
 
+        var fixedPitch = postOffset >= 0 && postLength >= 16 && ReadUInt32(stream, postOffset + 12) != 0;
+
         return new FontFaceData(path, family.Trim(), style.Trim(), renderFamily.Trim(),
             Math.Clamp(weight == 0 ? 400 : weight, 1, 1000),
             Math.Clamp(width == 0 ? 5 : width, 1, 9),
-            italic);
+            italic,
+            familyClass,
+            panose,
+            fixedPitch);
     }
 
     /// <summary>Picks the best string for each name ID: Windows English first, then any Windows/Unicode, then Mac Roman.</summary>

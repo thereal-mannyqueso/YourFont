@@ -26,6 +26,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddSingleton<ISettingsStore, SqliteSettingsStore>();
         services.AddSingleton<IFavoritesRepository, SqliteFavoritesRepository>();
         services.AddSingleton<ICollectionRepository, SqliteCollectionRepository>();
+        services.AddSingleton<ICategoryRepository, SqliteCategoryRepository>();
 
         // Fonts installed in Windows (read-only: registry list + font files).
         services.AddSingleton<IInstalledFontFileSource, WindowsRegistryFontFileSource>();

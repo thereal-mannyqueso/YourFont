@@ -22,10 +22,25 @@ public interface IFontLibraryService
     /// <summary>Re-reads only the Font Vault (after an import or removal); installed fonts are kept as they are.</summary>
     Task RefreshVaultAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>Families in <paramref name="scope"/> that match <paramref name="searchText"/>, in display order.</summary>
-    IReadOnlyList<FontFamilyInfo> Query(LibraryScope scope, string? searchText = null);
+    /// <summary>
+    /// Families in <paramref name="scope"/> that match <paramref name="searchText"/> and, if given,
+    /// <paramref name="category"/>, in display order.
+    /// </summary>
+    IReadOnlyList<FontFamilyInfo> Query(LibraryScope scope, string? searchText = null, FontCategory? category = null);
 
     int Count(LibraryScope scope);
+
+    /// <summary>How many families of each category are in the scope (after search), for the filter chips.</summary>
+    IReadOnlyDictionary<FontCategory, int> CountByCategory(LibraryScope scope, string? searchText = null);
+
+    /// <summary>The category a family is shown under: the user's choice if any, otherwise the detected one.</summary>
+    FontCategory GetCategory(FontFamilyInfo family);
+
+    /// <summary>True when the user picked the category by hand.</summary>
+    bool IsCategoryManual(string fontKey);
+
+    /// <summary>Sets a manual category, or with <c>null</c> goes back to automatic detection.</summary>
+    Task SetCategoryAsync(string fontKey, FontCategory? category, CancellationToken cancellationToken = default);
 
     bool IsFavorite(string fontKey);
 
@@ -44,8 +59,10 @@ public sealed class FontLibraryService(
     IFontVault vault,
     IFavoritesRepository favoritesRepository,
     ICollectionRepository collectionRepository,
+    ICategoryRepository categoryRepository,
     TimeProvider timeProvider) : IFontLibraryService
 {
+    private readonly Dictionary<string, FontCategory> _manualCategories = new(StringComparer.Ordinal);
     /// <summary>How far back "Recently Added" looks.</summary>
     public static readonly TimeSpan RecentWindow = TimeSpan.FromDays(30);
 
@@ -63,8 +80,15 @@ public sealed class FontLibraryService(
         var imported = await vault.GetFamiliesAsync(cancellationToken).ConfigureAwait(false);
         var favorites = await favoritesRepository.GetAllAsync(cancellationToken).ConfigureAwait(false);
         var memberships = await collectionRepository.GetAllMembershipsAsync(cancellationToken).ConfigureAwait(false);
+        var categories = await categoryRepository.GetAllAsync(cancellationToken).ConfigureAwait(false);
 
         SetFamilies(installed.Concat(imported));
+
+        _manualCategories.Clear();
+        foreach (var (key, category) in categories)
+        {
+            _manualCategories[key] = category;
+        }
 
         _favorites.Clear();
         _favorites.UnionWith(favorites);
@@ -85,7 +109,7 @@ public sealed class FontLibraryService(
     private void SetFamilies(IEnumerable<FontFamilyInfo> families)
         => _families = [.. families.OrderBy(f => f.FamilyName, StringComparer.CurrentCultureIgnoreCase)];
 
-    public IReadOnlyList<FontFamilyInfo> Query(LibraryScope scope, string? searchText = null)
+    public IReadOnlyList<FontFamilyInfo> Query(LibraryScope scope, string? searchText = null, FontCategory? category = null)
     {
         var inScope = _families.Where(f => IsInScope(f, scope));
         if (scope.Kind == LibraryScopeKind.RecentlyAdded)
@@ -93,10 +117,36 @@ public sealed class FontLibraryService(
             inScope = inScope.OrderByDescending(f => f.AddedAt);
         }
 
-        return [.. inScope.Where(f => FontSearch.Matches(f, searchText))];
+        return [.. inScope.Where(f => FontSearch.Matches(f, searchText) && (category is null || GetCategory(f) == category))];
     }
 
     public int Count(LibraryScope scope) => _families.Count(f => IsInScope(f, scope));
+
+    public IReadOnlyDictionary<FontCategory, int> CountByCategory(LibraryScope scope, string? searchText = null)
+        => _families
+            .Where(f => IsInScope(f, scope) && FontSearch.Matches(f, searchText))
+            .GroupBy(GetCategory)
+            .ToDictionary(g => g.Key, g => g.Count());
+
+    public FontCategory GetCategory(FontFamilyInfo family)
+        => _manualCategories.TryGetValue(family.Key, out var manual) ? manual : family.DetectedCategory;
+
+    public bool IsCategoryManual(string fontKey) => _manualCategories.ContainsKey(fontKey);
+
+    public async Task SetCategoryAsync(string fontKey, FontCategory? category, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(fontKey);
+        if (category is { } chosen)
+        {
+            await categoryRepository.SetAsync(fontKey, chosen, cancellationToken).ConfigureAwait(false);
+            _manualCategories[fontKey] = chosen;
+        }
+        else
+        {
+            await categoryRepository.RemoveAsync(fontKey, cancellationToken).ConfigureAwait(false);
+            _manualCategories.Remove(fontKey);
+        }
+    }
 
     public bool IsFavorite(string fontKey) => _favorites.Contains(fontKey);
 

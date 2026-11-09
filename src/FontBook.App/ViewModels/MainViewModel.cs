@@ -81,6 +81,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>Checkboxes for the preview's "Collections" menu, for the selected family.</summary>
     public ObservableCollection<CollectionMembershipViewModel> Memberships { get; } = [];
 
+    /// <summary>Category filter chips above the font list.</summary>
+    public ObservableCollection<CategoryChoiceViewModel> CategoryChips { get; } = [];
+
+    /// <summary>Choices in the preview's category picker for the selected family.</summary>
+    public ObservableCollection<CategoryChoiceViewModel> CategoryOptions { get; } = [];
+
+    /// <summary>The category the font list is filtered to; null shows all.</summary>
+    private FontCategory? _categoryFilter;
+
     public bool HasCollections => Sidebar.Collections.Count > 0;
 
     public bool IsCollectionSelected => Sidebar.SelectedItem.IsCollection;
@@ -488,9 +497,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             .Where(f => f.Source != FontSource.Imported)
             .Select(f => f.FamilyName)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach (var vm in _familyViewModels.Values.Where(v => v.IsImported))
+        foreach (var vm in _familyViewModels.Values)
         {
-            vm.IsAlsoInstalled = installedNames.Contains(vm.FamilyName);
+            vm.IsAlsoInstalled = vm.IsImported && installedNames.Contains(vm.FamilyName);
+            vm.Category = _library.GetCategory(vm.Model);
+            vm.IsCategoryManual = _library.IsCategoryManual(vm.Key);
         }
 
         if (SelectedFamily is not null && !_familyViewModels.ContainsKey(SelectedFamily.Key))
@@ -584,9 +595,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         var navigation = Sidebar.SelectedItem;
         var scope = navigation.Scope;
-        var results = _library.Query(scope, SearchText)
+        var results = _library.Query(scope, SearchText, _categoryFilter)
             .Select(f => _familyViewModels[f.Key])
             .ToList();
+        RebuildCategoryChips(scope);
 
         var previous = SelectedFamily;
         _isRefreshingList = true;
@@ -604,7 +616,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         SectionTitle = navigation.Title;
         var total = _library.Count(scope);
-        SectionSubtitle = string.IsNullOrWhiteSpace(SearchText) || total == 0
+        var filtered = !string.IsNullOrWhiteSpace(SearchText) || _categoryFilter is not null;
+        SectionSubtitle = !filtered || total == 0
             ? FamilyCount(total)
             : $"{results.Count} of {FamilyCount(total)}";
         OnPropertyChanged(nameof(IsCollectionSelected));
@@ -619,6 +632,83 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         RebuildMemberships();
+        RebuildCategoryOptions();
+    }
+
+    /// <summary>Filter chips: "All" plus every category present in the current section (and search).</summary>
+    private void RebuildCategoryChips(LibraryScope scope)
+    {
+        var counts = _library.CountByCategory(scope, SearchText);
+        CategoryChips.Clear();
+        CategoryChips.Add(new CategoryChoiceViewModel(null, "All", counts.Values.Sum(), _categoryFilter is null, OnCategoryChipSelected));
+        foreach (var category in FontCategoryNames.All)
+        {
+            var count = counts.GetValueOrDefault(category);
+            if (count > 0 || category == _categoryFilter)
+            {
+                CategoryChips.Add(new CategoryChoiceViewModel(category, category.ShortName(), count, category == _categoryFilter, OnCategoryChipSelected));
+            }
+        }
+    }
+
+    private void OnCategoryChipSelected(CategoryChoiceViewModel chip)
+    {
+        if (_categoryFilter == chip.Category)
+        {
+            return;
+        }
+
+        _categoryFilter = chip.Category;
+        // Rebuilding the chips inside their own selection event would recreate the button being clicked; defer it.
+        System.Windows.Application.Current?.Dispatcher.BeginInvoke(RefreshList);
+    }
+
+    /// <summary>Options in the preview's category picker for the selected family.</summary>
+    private void RebuildCategoryOptions()
+    {
+        CategoryOptions.Clear();
+        if (SelectedFamily is not { } family)
+        {
+            return;
+        }
+
+        var manual = family.IsCategoryManual;
+        CategoryOptions.Add(new CategoryChoiceViewModel(null, $"Automatic ({family.Model.DetectedCategory.DisplayName()})", 0, !manual, OnCategoryOptionSelected));
+        foreach (var category in FontCategoryNames.All)
+        {
+            CategoryOptions.Add(new CategoryChoiceViewModel(category, category.DisplayName(), 0, manual && family.Category == category, OnCategoryOptionSelected));
+        }
+    }
+
+    private async void OnCategoryOptionSelected(CategoryChoiceViewModel option)
+    {
+        if (SelectedFamily is not { } family)
+        {
+            return;
+        }
+
+        try
+        {
+            await _library.SetCategoryAsync(family.Key, option.Category);
+            family.Category = _library.GetCategory(family.Model);
+            family.IsCategoryManual = _library.IsCategoryManual(family.Key);
+
+            // If the change moves the font out of the active filter, show All so it doesn't vanish.
+            if (_categoryFilter is { } filter && filter != family.Category)
+            {
+                _categoryFilter = null;
+            }
+
+            RefreshList();
+            ShowNotification(option.Category is null
+                ? $"\"{family.FamilyName}\" uses its detected category again ({family.CategoryName})."
+                : $"Moved \"{family.FamilyName}\" to {family.CategoryName}.", isWarning: false);
+        }
+        catch (Exception ex) when (ex is System.Data.Common.DbException or IOException)
+        {
+            _logger.LogError(ex, "Saving the category of {Family} failed", family.FamilyName);
+            _dialogs.ShowError("Couldn't change category", ex.Message);
+        }
     }
 
     private void RebuildMemberships()
@@ -645,6 +735,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ShowImportAction = IsEmpty && totalCount == 0 && kind is LibraryScopeKind.ImportedFonts or LibraryScopeKind.RecentlyAdded;
         if (!IsEmpty)
         {
+            return;
+        }
+
+        if (totalCount > 0 && _categoryFilter is { } category && string.IsNullOrWhiteSpace(SearchText))
+        {
+            (EmptyGlyph, EmptyTitle, EmptyMessage) = (Glyphs.Font, $"No {category.DisplayName()} fonts here",
+                "Choose \"All\" above the list to see every font in this section.");
             return;
         }
 
