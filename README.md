@@ -52,6 +52,10 @@ Deleting that folder resets FontBook to a fresh state. It never touches your ins
   (originals untouched), detects duplicates by content, rejects damaged files, and previews them without installing.
   Imported fonts appear under **Imported Fonts** and **Recently Added** (last 30 days).
 - **Remove from Font Vault** (preview header or right-click) deletes only FontBook's copy, after confirmation.
+- **Install / uninstall for your account** (Milestone 3): **Install** on Vault fonts copies the font into your
+  per-user fonts folder, registers it under `HKCU` and notifies apps. **Uninstall…** on User Fonts asks first and can
+  keep a copy in the Vault. System fonts can never be uninstalled from FontBook. *Status: unit-tested with fakes;
+  a real install/uninstall on Windows hasn't been verified yet.*
 - Main window with a custom Windows 11 title bar, Mica backdrop and native caption buttons (Snap Layouts work)
 - Resizable sidebar and font list (widths are remembered)
 - Sidebar navigation: **Library** (All, System, User, Favorites) and **Font Vault** (Imported, Custom Collections, Recently Added) with counts

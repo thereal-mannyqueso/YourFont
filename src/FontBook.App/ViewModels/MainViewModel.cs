@@ -9,6 +9,7 @@ using FontBook.App.Services.Theming;
 using FontBook.Core.Data;
 using FontBook.Core.Library;
 using FontBook.Core.Models;
+using FontBook.Core.Services;
 using FontBook.Core.Vault;
 using Microsoft.Extensions.Logging;
 
@@ -31,6 +32,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly IDialogService _dialogs;
     private readonly IFontVault _vault;
     private readonly IFilePickerService _filePicker;
+    private readonly IFontInstallationService _installer;
     private readonly ILogger<MainViewModel> _logger;
     private CancellationTokenSource? _notificationTimer;
     private readonly Dictionary<string, FontFamilyViewModel> _familyViewModels = new(StringComparer.Ordinal);
@@ -49,10 +51,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         IDialogService dialogs,
         IFontVault vault,
         IFilePickerService filePicker,
+        IFontInstallationService installer,
         ILogger<MainViewModel> logger)
     {
         _vault = vault;
         _filePicker = filePicker;
+        _installer = installer;
         _library = library;
         _settings = settings;
         _settingsWriter = settingsWriter;
@@ -117,6 +121,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private bool _isImporting;
+
+    /// <summary>Text of the "working…" indicator (importing, installing, uninstalling). Null hides it.</summary>
+    [ObservableProperty]
+    private string? _busyText;
 
     /// <summary>Short message shown in the notification bar (e.g. import results). Null hides the bar.</summary>
     [ObservableProperty]
@@ -233,6 +241,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         IsImporting = true;
+        BusyText = "Importing fonts into the Font Vault…";
         try
         {
             var result = await _vault.ImportAsync(paths);
@@ -263,7 +272,110 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         finally
         {
             IsImporting = false;
+            BusyText = null;
         }
+    }
+
+    /// <summary>Installs a Font Vault family for the current Windows user.</summary>
+    [RelayCommand]
+    private async Task InstallAsync(FontFamilyViewModel? family)
+    {
+        if (family is not { CanInstall: true } || BusyText is not null)
+        {
+            return;
+        }
+
+        BusyText = $"Installing \"{family.FamilyName}\"…";
+        try
+        {
+            var result = await _installer.InstallForCurrentUserAsync(family.Model);
+            await ReloadLibraryAsync();
+            if (result.InstalledFiles > 0)
+            {
+                ShowNotification(
+                    $"Installed \"{family.FamilyName}\" for your account. It's now available in your apps (some apps need a restart)."
+                    + (result.Problems.Count > 0 ? $" {Plural(result.Problems.Count, "file")} couldn't be installed: {result.Problems[0]}" : string.Empty),
+                    isWarning: result.Problems.Count > 0);
+            }
+            else
+            {
+                ShowNotification($"\"{family.FamilyName}\" couldn't be installed. {string.Join(" ", result.Problems)}", isWarning: true);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or System.Security.SecurityException)
+        {
+            _logger.LogError(ex, "Installing {Family} failed", family.FamilyName);
+            _dialogs.ShowError("Couldn't install font", ex.Message);
+        }
+        finally
+        {
+            BusyText = null;
+        }
+    }
+
+    /// <summary>Uninstalls a per-user font, after confirmation, optionally keeping a copy in the Font Vault.</summary>
+    [RelayCommand]
+    private async Task UninstallAsync(FontFamilyViewModel? family)
+    {
+        if (family is not { IsUserFont: true } || BusyText is not null)
+        {
+            return; // system fonts can never be uninstalled from FontBook
+        }
+
+        var choice = _dialogs.Choose(
+            "Uninstall font",
+            $"Uninstall \"{family.FamilyName}\" from Windows?\n\n" +
+            "It will no longer be available in your apps. Apps that are open may need a restart.\n\n" +
+            "Yes: uninstall and keep a copy in the Font Vault (recommended)\n" +
+            "No: uninstall without keeping a copy\n" +
+            "Cancel: keep the font installed");
+        if (choice == DialogChoice.Cancel)
+        {
+            return;
+        }
+
+        BusyText = $"Uninstalling \"{family.FamilyName}\"…";
+        try
+        {
+            if (choice == DialogChoice.Yes)
+            {
+                var files = family.Model.Faces.Select(f => f.FilePath).OfType<string>().Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                var saved = await _vault.ImportAsync(files);
+                if (saved.Imported.Count + saved.Duplicates.Count < files.Count)
+                {
+                    _dialogs.ShowError("Font not uninstalled",
+                        "FontBook couldn't save a copy in the Font Vault, so nothing was uninstalled."
+                        + (saved.Failed.Count > 0 ? $"\n\n{saved.Failed[0].FileName}: {saved.Failed[0].Reason}" : string.Empty));
+                    return;
+                }
+            }
+
+            var result = await _installer.UninstallForCurrentUserAsync(family.Model);
+            await ReloadLibraryAsync();
+
+            var message = result.InUse.Count == 0
+                ? $"Uninstalled \"{family.FamilyName}\"." + (choice == DialogChoice.Yes ? " A copy is kept in the Font Vault." : string.Empty)
+                : $"\"{family.FamilyName}\" is in use by an app, so {Plural(result.InUse.Count, "file")} stayed installed. Close apps using it and try again.";
+            ShowNotification(message, isWarning: result.InUse.Count > 0);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or System.Security.SecurityException or System.Data.Common.DbException)
+        {
+            _logger.LogError(ex, "Uninstalling {Family} failed", family.FamilyName);
+            _dialogs.ShowError("Couldn't uninstall font", ex.Message);
+        }
+        finally
+        {
+            BusyText = null;
+        }
+    }
+
+    /// <summary>Re-discovers installed fonts and the Vault after Windows' font list changed.</summary>
+    private async Task ReloadLibraryAsync()
+    {
+        await _library.LoadAsync();
+        SyncFamilyViewModels();
+        Sidebar.UpdateCounts();
+        RefreshList();
     }
 
     /// <summary>Deletes FontBook's Vault copy of an imported family, after confirmation.</summary>
@@ -369,6 +481,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             _familyViewModels[family.Key] = previous.TryGetValue(family.Key, out var existing) && ReferenceEquals(existing.Model, family)
                 ? existing
                 : new FontFamilyViewModel(family, _fonts, _library.IsFavorite(family.Key));
+        }
+
+        // Mark Vault fonts whose family is already installed in Windows.
+        var installedNames = _library.Families
+            .Where(f => f.Source != FontSource.Imported)
+            .Select(f => f.FamilyName)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var vm in _familyViewModels.Values.Where(v => v.IsImported))
+        {
+            vm.IsAlsoInstalled = installedNames.Contains(vm.FamilyName);
         }
 
         if (SelectedFamily is not null && !_familyViewModels.ContainsKey(SelectedFamily.Key))

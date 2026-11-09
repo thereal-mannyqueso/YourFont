@@ -45,6 +45,17 @@ public sealed partial class FontFamilyViewModel : ObservableObject
     /// <summary>True for fonts imported into the Font Vault (they can be removed from it).</summary>
     public bool IsImported => Model.Source == FontSource.Imported;
 
+    /// <summary>True for fonts installed for the current user only (they can be uninstalled).</summary>
+    public bool IsUserFont => Model.Source == FontSource.User;
+
+    /// <summary>For Vault fonts: a font with the same family name is already installed in Windows.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanInstall))]
+    private bool _isAlsoInstalled;
+
+    /// <summary>Vault fonts that aren't installed yet can be installed.</summary>
+    public bool CanInstall => IsImported && !IsAlsoInstalled;
+
     public string StyleCountText => Faces.Count == 1 ? "1 style" : $"{Faces.Count} styles";
 
     public string SourceText => Model.Source switch

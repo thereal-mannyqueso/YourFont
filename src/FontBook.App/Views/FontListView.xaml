@@ -106,6 +106,23 @@
                                         <TextBlock Style="{StaticResource Icon}" Text="&#xE738;" FontSize="14" />
                                     </MenuItem.Icon>
                                 </MenuItem>
+                                <Separator />
+                                <MenuItem Header="Install for My Account"
+                                          Visibility="{Binding CanInstall, Converter={StaticResource BoolToVisibility}}"
+                                          Command="{Binding PlacementTarget.Tag.InstallCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                          CommandParameter="{Binding}">
+                                    <MenuItem.Icon>
+                                        <TextBlock Style="{StaticResource Icon}" Text="&#xE896;" FontSize="14" />
+                                    </MenuItem.Icon>
+                                </MenuItem>
+                                <MenuItem Header="Uninstall&#x2026;"
+                                          Visibility="{Binding IsUserFont, Converter={StaticResource BoolToVisibility}}"
+                                          Command="{Binding PlacementTarget.Tag.UninstallCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                          CommandParameter="{Binding}">
+                                    <MenuItem.Icon>
+                                        <TextBlock Style="{StaticResource Icon}" Text="&#xE74D;" FontSize="14" />
+                                    </MenuItem.Icon>
+                                </MenuItem>
                                 <MenuItem Header="Remove from Font Vault&#x2026;"
                                           Visibility="{Binding IsImported, Converter={StaticResource BoolToVisibility}}"
                                           Command="{Binding PlacementTarget.Tag.RemoveFromVaultCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"

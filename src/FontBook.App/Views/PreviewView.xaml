@@ -93,6 +93,37 @@
                         </StackPanel>
                     </Button>
 
+                    <!-- Install (Font Vault fonts that aren't installed yet) -->
+                    <Button Style="{StaticResource AccentButton}" Padding="14,6" Margin="0,0,6,0" VerticalAlignment="Center"
+                            Command="{Binding InstallCommand}" CommandParameter="{Binding Preview.Family}"
+                            Visibility="{Binding Preview.Family.CanInstall, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}"
+                            ToolTip="Install for your Windows account so all your apps can use it"
+                            AutomationProperties.Name="Install font">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource Icon}" Text="&#xE896;" FontSize="13" Foreground="{DynamicResource TextOnAccentBrush}" />
+                            <TextBlock Text="Install" Margin="8,0,0,0" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Already installed (Font Vault fonts whose family is installed in Windows) -->
+                    <Border Style="{StaticResource Badge}" Margin="0,0,8,0"
+                            ToolTip="A font with this name is installed in Windows."
+                            Visibility="{Binding Preview.Family.IsAlsoInstalled, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
+                        <TextBlock Text="Installed" />
+                    </Border>
+
+                    <!-- Uninstall (fonts installed for this user only) -->
+                    <Button Style="{StaticResource SubtleButton}" Padding="10,6" Margin="4,0,0,0"
+                            Command="{Binding UninstallCommand}" CommandParameter="{Binding Preview.Family}"
+                            Visibility="{Binding Preview.Family.IsUserFont, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}"
+                            ToolTip="Remove this font from Windows for your account"
+                            AutomationProperties.Name="Uninstall font">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource Icon}" Text="&#xE74D;" FontSize="14" />
+                            <TextBlock Text="Uninstall&#x2026;" Margin="8,0,0,0" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+
                     <!-- Remove (Font Vault fonts only) -->
                     <Button Style="{StaticResource SubtleButton}" Padding="10,6" Margin="4,0,0,0"
                             Command="{Binding RemoveFromVaultCommand}" CommandParameter="{Binding Preview.Family}"

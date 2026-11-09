@@ -3,6 +3,7 @@ using FontBook.Core.Services;
 using FontBook.Infrastructure.Database;
 using FontBook.Core.Vault;
 using FontBook.Infrastructure.Fonts.Discovery;
+using FontBook.Infrastructure.Fonts.Installation;
 using FontBook.Infrastructure.Vault;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -29,6 +30,15 @@ public static class InfrastructureServiceCollectionExtensions
         // Fonts installed in Windows (read-only: registry list + font files).
         services.AddSingleton<IInstalledFontFileSource, WindowsRegistryFontFileSource>();
         services.AddSingleton<IFontDiscoveryService, WindowsFontDiscoveryService>();
+
+        // Per-user install/uninstall (documented Windows mechanism; never touches system fonts).
+        services.AddSingleton<IUserFontRegistry, WindowsUserFontRegistry>();
+        services.AddSingleton<IFontResourceApi, WindowsFontResourceApi>();
+        services.AddSingleton<IFontInstallationService>(sp => new UserFontInstaller(
+            UserFontInstaller.DefaultUserFontsDirectory,
+            sp.GetRequiredService<IUserFontRegistry>(),
+            sp.GetRequiredService<IFontResourceApi>(),
+            sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<UserFontInstaller>>()));
 
         // Font Vault (imported copies, kept apart from installed fonts).
         services.AddSingleton<SqliteVaultRepository>();

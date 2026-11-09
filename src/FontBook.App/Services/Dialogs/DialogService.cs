@@ -10,7 +10,17 @@ public interface IDialogService
 {
     bool Confirm(string title, string message, string confirmLabel = "OK");
 
+    /// <summary>Yes / No / Cancel question. The message must explain what Yes and No mean.</summary>
+    DialogChoice Choose(string title, string message);
+
     void ShowError(string title, string message);
+}
+
+public enum DialogChoice
+{
+    Yes,
+    No,
+    Cancel,
 }
 
 /// <summary>
@@ -26,6 +36,20 @@ public sealed class DialogService : IDialogService
             ? MessageBox.Show(message, title, MessageBoxButton.OKCancel, MessageBoxImage.Warning, MessageBoxResult.Cancel)
             : MessageBox.Show(owner, message, title, MessageBoxButton.OKCancel, MessageBoxImage.Warning, MessageBoxResult.Cancel);
         return result == MessageBoxResult.OK;
+    }
+
+    public DialogChoice Choose(string title, string message)
+    {
+        var owner = Application.Current?.MainWindow;
+        var result = owner is null
+            ? MessageBox.Show(message, title, MessageBoxButton.YesNoCancel, MessageBoxImage.Question, MessageBoxResult.Cancel)
+            : MessageBox.Show(owner, message, title, MessageBoxButton.YesNoCancel, MessageBoxImage.Question, MessageBoxResult.Cancel);
+        return result switch
+        {
+            MessageBoxResult.Yes => DialogChoice.Yes,
+            MessageBoxResult.No => DialogChoice.No,
+            _ => DialogChoice.Cancel,
+        };
     }
 
     public void ShowError(string title, string message)

@@ -209,12 +209,12 @@
                     </Grid>
                 </Border>
 
-                <!-- Import in progress -->
+                <!-- Work in progress (importing, installing, uninstalling) -->
                 <Border Grid.ColumnSpan="2" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,20"
                         Padding="16,10" CornerRadius="8" BorderThickness="1"
                         Background="{DynamicResource PopupBackgroundBrush}" BorderBrush="{DynamicResource PopupStrokeBrush}"
-                        Visibility="{Binding IsImporting, Converter={StaticResource BoolToVisibility}}">
-                    <TextBlock Text="Importing fonts into the Font Vault&#x2026;" />
+                        Visibility="{Binding BusyText, Converter={StaticResource NullToVisibility}}">
+                    <TextBlock Text="{Binding BusyText}" />
                 </Border>
             </Grid>
         </Border>
