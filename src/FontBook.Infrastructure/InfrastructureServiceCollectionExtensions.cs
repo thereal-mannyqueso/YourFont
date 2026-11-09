@@ -1,7 +1,7 @@
 using FontBook.Core.Data;
 using FontBook.Core.Services;
 using FontBook.Infrastructure.Database;
-using FontBook.Infrastructure.Fonts.Sample;
+using FontBook.Infrastructure.Fonts.Discovery;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace FontBook.Infrastructure;
@@ -24,9 +24,9 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddSingleton<IFavoritesRepository, SqliteFavoritesRepository>();
         services.AddSingleton<ICollectionRepository, SqliteCollectionRepository>();
 
-        // TEMPORARY (Milestone 1): sample data instead of scanning the PC.
-        // Milestone 2 replaces this line with the real Windows font discovery service.
-        services.AddSingleton<IFontDiscoveryService, SampleFontDiscoveryService>();
+        // Fonts installed in Windows (read-only: registry list + font files).
+        services.AddSingleton<IInstalledFontFileSource, WindowsRegistryFontFileSource>();
+        services.AddSingleton<IFontDiscoveryService, WindowsFontDiscoveryService>();
 
         return services;
     }

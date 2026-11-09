@@ -6,13 +6,13 @@ using FontBook.Core.Models;
 
 namespace FontBook.App.ViewModels;
 
-/// <summary>One style of a family, ready to be drawn (WPF weight/style/stretch resolved).</summary>
+/// <summary>One style of a family, ready to be drawn (WPF family/weight/style/stretch resolved).</summary>
 public sealed partial class FontFaceViewModel : ObservableObject
 {
-    public FontFaceViewModel(FontFaceInfo model, FontFamily fontFamily, IFontPreviewProvider fonts)
+    public FontFaceViewModel(FontFaceInfo model, FontFamilyInfo family, IFontPreviewProvider fonts)
     {
         Model = model;
-        FontFamily = fontFamily;
+        FontFamily = fonts.GetFontFamily(family, model);
         FontWeight = fonts.GetWeight(model);
         FontStyle = fonts.GetStyle(model);
         FontStretch = fonts.GetStretch(model);

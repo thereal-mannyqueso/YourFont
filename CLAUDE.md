@@ -30,7 +30,8 @@ dotnet run --project src/FontBook.App # launch the app
 - Font installation/removal must use documented Windows mechanisms (see `IFontInstallationService`).
   Never modify files in `C:\Windows\Fonts`. Never modify a user's original font files.
 - Imported (Vault) fonts must stay separate from installed fonts. `FontKey` includes the source for this reason.
-- Sample data lives only in `Infrastructure/Fonts/Sample/` and must stay clearly flagged (`IsSample`, UI badge).
+- Font files are opened **read-only** (`FileAccess.Read`, permissive share). Registry keys with `writable: false`.
+- If sample/placeholder data is ever reintroduced, flag it (`IsSample`, UI badge) and keep it separate from real discovery.
 
 ## Database
 - Schema changes: **append** a migration to `DatabaseInitializer.Migrations`. Never edit an existing one.
@@ -52,7 +53,12 @@ dotnet run --project src/FontBook.App # launch the app
   In XAML use `&#xE8D2;` entities.
 - **Encoding:** Windows PowerShell 5.1 `Get-Content`/`Set-Content` default to ANSI and corrupt UTF-8.
   Edit files with the editor tools, or always pass `-Encoding utf8`.
-- WPF projects don't import `System.IO` implicitly. `src/FontBook.App/GlobalUsings.cs` adds it.
+- **Smart App Control** (Windows 11) blocks unsigned local builds with "An Application Control policy has blocked
+  this file" (Code Integrity event 3077). It's a security setting: never change it yourself. Ask the user.
+- **WPF font names:** when loading a face from a file (`new FontFamily(uri, "#Name")`), the name must be the WWS (ID 21)
+  or typographic (ID 16) family name. A wrong name doesn't throw, it silently renders Segoe UI. Keep the
+  `RenderName_MatchesWpf_ForEveryInstalledFont` test passing. Note: Segoe UI *is* the fallback, so it can hide this bug.
+- WPF projects (and the test project, which uses WPF) don't import `System.IO` implicitly. `src/FontBook.App/GlobalUsings.cs` adds it.
 - `SupportedOSPlatformVersion` can't exceed 7.0 with `net10.0-windows` unless you target a Windows SDK TFM. Use runtime checks (`WindowEffects.IsMicaSupported`).
 
 ## Verifying UI changes

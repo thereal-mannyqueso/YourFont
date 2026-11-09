@@ -5,10 +5,10 @@ layout with Windows 11 materials (Mica, rounded layers, Segoe Fluent icons).
 
 Built with **C# / .NET 10 / WPF**, MVVM, dependency injection and SQLite.
 
-> **Status: Milestone 1 (foundation).** The interface, navigation, previews, themes,
-> favorites, collections and database work. The font list currently comes from a built-in
-> **sample data set** (marked with a "Sample data" badge). Real font discovery, importing and
-> installation are the next milestones. See [Roadmap](#roadmap).
+> **Status: Milestone 2 in progress.** FontBook shows the fonts actually installed on your PC:
+> system fonts under **System Fonts**, and fonts you installed for your account under **User Fonts**.
+> Fonts are only *read*. FontBook never modifies, moves or locks font files. Importing into the
+> Font Vault and installing fonts come next. See [Roadmap](#roadmap).
 
 ---
 
@@ -20,6 +20,10 @@ Built with **C# / .NET 10 / WPF**, MVVM, dependency injection and SQLite.
 | .NET SDK | 10.0 | `winget install Microsoft.DotNet.SDK.10` |
 | Git | any recent | `winget install Git.Git` |
 | IDE (optional) | Visual Studio 2026 / VS Code / Rider | Open `FontBook.slnx` |
+
+> **Smart App Control:** Windows 11's Smart App Control blocks unsigned programs you build yourself
+> ("An Application Control policy has blocked this file"). On a development PC it has to be turned off
+> (Windows Security → App & browser control), or builds must be code-signed.
 
 ## Build, test, run
 
@@ -38,8 +42,11 @@ dotnet run --project src/FontBook.App
 The app keeps its data in `%LOCALAPPDATA%\FontBook\` (`fontbook.db`, and later the `Vault` folder).
 Deleting that folder resets FontBook to a fresh state. It never touches your installed fonts.
 
-## What works in Milestone 1
+## What works
 
+- **Real font discovery (read-only):** reads Windows' installed-font list (`HKLM` for system fonts, `HKCU` for
+  fonts installed just for you), opens each TTF/OTF/TTC file read-only, and groups faces into families.
+  Each style is drawn from its own file. Legacy `.fon` bitmap fonts are skipped (modern renderers can't draw them).
 - Main window with a custom Windows 11 title bar, Mica backdrop and native caption buttons (Snap Layouts work)
 - Resizable sidebar and font list (widths are remembered)
 - Sidebar navigation: **Library** (All, System, User, Favorites) and **Font Vault** (Imported, Custom Collections, Recently Added) with counts
@@ -67,7 +74,8 @@ src/
     Search/                    FontSearch: search matching rules
   FontBook.Infrastructure/     Implementations of the Core contracts
     Database/                  SQLite connection, schema migrations, repositories
-    Fonts/Sample/              TEMPORARY sample font data (Milestone 1 only)
+    Fonts/Files/               Read-only OpenType/TrueType name reader
+    Fonts/Discovery/           Installed-font discovery (registry list + files)
   FontBook.App/                The WPF desktop application
     Views/                     Windows and user controls (XAML)
     ViewModels/                MVVM view models
@@ -85,8 +93,9 @@ docs/
 ## Roadmap
 
 1. ✅ **Milestone 1 — Foundation:** shell, navigation, previews, themes, collections, database
-2. **Milestone 2 — Real fonts:** discover installed fonts (system and per-user) from the Windows font
-   registry and files. Import TTF/OTF/TTC into the Font Vault (copies, originals untouched) and preview them without installing.
+2. **Milestone 2 — Real fonts:**
+   - ✅ Discover installed fonts (system and per-user) from the Windows font registry and files
+   - Import TTF/OTF/TTC into the Font Vault (copies, originals untouched) and preview them without installing
 3. **Milestone 3 — Install/uninstall:** per-user installation through documented Windows mechanisms,
    safe uninstall with confirmation, install from the Vault
 4. **Later:** font details (designer, version, license), glyph grid, variable-font axes, drag-and-drop import,

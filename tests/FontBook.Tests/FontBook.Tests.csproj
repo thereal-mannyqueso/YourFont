@@ -1,7 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <!-- Lets tests compare our font names with what WPF's text engine reports. -->
+    <UseWPF>true</UseWPF>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
@@ -16,6 +18,8 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <!-- UseWPF removes System.IO from implicit usings. -->
+    <Using Include="System.IO" />
   </ItemGroup>
 
   <ItemGroup>

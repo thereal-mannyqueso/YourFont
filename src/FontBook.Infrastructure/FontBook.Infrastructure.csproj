@@ -5,7 +5,8 @@
     (SQLite database, font discovery, and later installation and the Font Vault).
   -->
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <!-- Windows-specific: reads the Windows font registry. -->
+    <TargetFramework>net10.0-windows</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>

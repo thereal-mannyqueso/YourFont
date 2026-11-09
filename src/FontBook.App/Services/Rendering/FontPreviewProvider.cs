@@ -8,15 +8,16 @@ namespace FontBook.App.Services.Rendering;
 /// Translates FontBook's UI-independent font models into the WPF objects used to draw text.
 /// </summary>
 /// <remarks>
-/// WPF's text stack is built on DirectWrite-era font technology (OpenType, TrueType, TTC).
-/// It can also load a font straight from a file — <c>new FontFamily(folderUri, "./#Family")</c> —
-/// without installing it, which is how the Font Vault will preview imported fonts.
-/// All of that knowledge is kept behind this interface so it can later be swapped for a
-/// lower-level DirectWrite renderer (e.g. for variable-font axes) without touching views.
+/// Each face is loaded straight from its own font file — <c>new FontFamily(fileUri, "#Family")</c> —
+/// which works for system fonts, per-user fonts and (later) Font Vault copies alike, and
+/// never requires installing anything. WPF only reads the file.
+/// All of this is kept behind this interface so it can later be swapped for a lower-level
+/// DirectWrite renderer (e.g. for variable-font axes) without touching views.
 /// </remarks>
 public interface IFontPreviewProvider
 {
-    FontFamily GetFontFamily(FontFamilyInfo family);
+    /// <summary>The WPF family used to draw <paramref name="face"/> (or the family by name if the face has no file).</summary>
+    FontFamily GetFontFamily(FontFamilyInfo family, FontFaceInfo? face);
 
     FontWeight GetWeight(FontFaceInfo face);
 
@@ -27,20 +28,20 @@ public interface IFontPreviewProvider
 
 public sealed class WpfFontPreviewProvider : IFontPreviewProvider
 {
-    private readonly Dictionary<string, FontFamily> _cache = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, FontFamily> _cache = new(StringComparer.OrdinalIgnoreCase);
 
-    public FontFamily GetFontFamily(FontFamilyInfo family)
+    public FontFamily GetFontFamily(FontFamilyInfo family, FontFaceInfo? face)
     {
         ArgumentNullException.ThrowIfNull(family);
-        if (!_cache.TryGetValue(family.Key, out var wpfFamily))
+
+        if (face?.FilePath is not { } path)
         {
-            // Installed fonts are resolved by family name. File-based loading for imported
-            // fonts is added together with the Font Vault in Milestone 2.
-            wpfFamily = new FontFamily(family.FamilyName);
-            _cache[family.Key] = wpfFamily;
+            return Cached(family.FamilyName, () => new FontFamily(family.FamilyName));
         }
 
-        return wpfFamily;
+        // The name inside the file identifies the face (important for .ttc collections holding several families).
+        var nameInFile = face.FileFamilyName ?? family.FamilyName;
+        return Cached($"{path}|{nameInFile}", () => new FontFamily(new Uri(path), "#" + nameInFile));
     }
 
     public FontWeight GetWeight(FontFaceInfo face) => FontWeight.FromOpenTypeWeight(Math.Clamp(face.Weight, 1, 999));
@@ -53,4 +54,15 @@ public sealed class WpfFontPreviewProvider : IFontPreviewProvider
     };
 
     public FontStretch GetStretch(FontFaceInfo face) => FontStretch.FromOpenTypeStretch(Math.Clamp(face.Stretch, 1, 9));
+
+    private FontFamily Cached(string key, Func<FontFamily> create)
+    {
+        if (!_cache.TryGetValue(key, out var fontFamily))
+        {
+            fontFamily = create();
+            _cache[key] = fontFamily;
+        }
+
+        return fontFamily;
+    }
 }

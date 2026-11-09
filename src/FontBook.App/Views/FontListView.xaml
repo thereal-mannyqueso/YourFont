@@ -112,6 +112,7 @@
                         <StackPanel VerticalAlignment="Center">
                             <!-- The family name drawn in its own typeface, like Font Book. -->
                             <TextBlock Text="{Binding FamilyName}" FontFamily="{Binding PreviewFamily}" FontSize="17"
+                                       FontWeight="{Binding PreviewWeight}" FontStyle="{Binding PreviewStyle}" FontStretch="{Binding PreviewStretch}"
                                        LineStackingStrategy="BlockLineHeight" LineHeight="24"
                                        Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis" />
                             <TextBlock Text="{Binding StyleCountText}" Style="{StaticResource Text.Caption}" Margin="0,1,0,0" />

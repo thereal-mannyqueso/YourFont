@@ -16,10 +16,15 @@ public enum FontSlant
 /// <param name="Weight">OpenType weight, 1–1000 (400 = Regular, 700 = Bold).</param>
 /// <param name="Slant">Upright, italic or oblique.</param>
 /// <param name="Stretch">OpenType width class, 1–9 (5 = Normal).</param>
-/// <param name="FilePath">Font file on disk, when known. Null for sample data.</param>
+/// <param name="FilePath">Font file on disk, when known.</param>
+/// <param name="FileFamilyName">
+/// The family name a text renderer matches on for this face (e.g. "Segoe UI" for Segoe UI Semibold).
+/// Together with weight/slant/stretch it picks this exact face out of <paramref name="FilePath"/>.
+/// </param>
 public sealed record FontFaceInfo(
     string StyleName,
     int Weight = 400,
     FontSlant Slant = FontSlant.Normal,
     int Stretch = 5,
-    string? FilePath = null);
+    string? FilePath = null,
+    string? FileFamilyName = null);

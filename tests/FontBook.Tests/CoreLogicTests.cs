@@ -4,7 +4,6 @@ using FontBook.Core.Models;
 using FontBook.Core.Search;
 using FontBook.Core.Services;
 using FontBook.Infrastructure.Database;
-using FontBook.Infrastructure.Fonts.Sample;
 
 namespace FontBook.Tests;
 
@@ -135,18 +134,6 @@ public sealed class FontLibraryServiceTests
         await collections.DeleteAsync(serifs.Id);
         library.ForgetCollection(serifs.Id);
         Assert.Empty(library.Query(new LibraryScope(LibraryScopeKind.AnyCollection)));
-    }
-
-    [Fact]
-    public async Task SampleData_IsFlaggedAsSample()
-    {
-        var sample = new SampleFontDiscoveryService();
-        var families = await sample.DiscoverAsync();
-
-        Assert.True(sample.IsSampleData);
-        Assert.NotEmpty(families);
-        Assert.All(families, f => Assert.True(f.IsSample));
-        Assert.DoesNotContain(families, f => f.Source == FontSource.Imported);
     }
 
     private static string[] Names(IEnumerable<FontFamilyInfo> families) => [.. families.Select(f => f.FamilyName)];

@@ -112,13 +112,30 @@ Sidebar entries and style rows are radio buttons whose `IsChecked` is bound two-
 mouse, keyboard and assistive technology (screen readers via UI Automation) all behave the same.
 This was found and fixed during Milestone 1 testing.
 
-## Sample data vs. real discovery
+## Font discovery (Milestone 2)
 
-`Infrastructure/Fonts/Sample/SampleFontDiscoveryService.cs` is the **only** source of fonts in
-Milestone 1. It lists families that ship with Windows 11 so previews render real typefaces, but
-its System/User split is invented for demonstration. Every family is flagged `IsSample`, and the UI
-shows a "Sample data" badge. It is registered in one clearly-commented line in
-`InfrastructureServiceCollectionExtensions.cs`, which Milestone 2 replaces.
+Milestone 1 used a temporary sample list. It was replaced (and deleted) once real discovery worked.
+
+1. **Which fonts are installed?** `WindowsRegistryFontFileSource` reads the same list Windows
+   Settings uses, with registry keys opened read-only:
+   - `HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts` → **System** (for all users, files in `C:\Windows\Fonts`)
+   - `HKCU\...\Fonts` → **User** (installed only for you, files usually in `%LOCALAPPDATA%\Microsoft\Windows\Fonts`)
+2. **What's in each file?** `FontFileReader` is a small, dependency-free OpenType reader. It seeks
+   to the `name`, `OS/2` and `head` tables (a few KB, even for huge fonts) to get family, style,
+   weight, width and italic. Files are opened with `FileAccess.Read` and a permissive share mode, so
+   FontBook can never modify or lock them. A test verifies files are byte-for-byte unchanged.
+3. **Grouping:** faces are grouped into families by *typographic* family name (name ID 16), so
+   "Segoe UI Semibold" appears as the Semibold style of "Segoe UI", like Font Book does.
+   Discovery runs on a background thread. Unreadable or unsupported files are skipped and logged.
+
+**Rendering each face.** Every style is drawn from its own file:
+`new FontFamily(fileUri, "#<name>")`. The name must be the one WPF matches on: the WWS family
+name (ID 21), else typographic (ID 16), else legacy (ID 1). Passing any other name doesn't fail. WPF
+**silently falls back to Segoe UI**, which is why `RenderName_MatchesWpf_ForEveryInstalledFont`
+checks every installed font against WPF's own `GlyphTypeface.FamilyNames`.
+
+**Known limits:** `.fon` bitmap fonts are skipped. Variable fonts (e.g. Bahnschrift, Segoe UI Variable)
+show only their default style for now; named instances need the DirectWrite renderer described above.
 
 ## Planned: installation (Milestone 3)
 `IFontInstallationService` documents the intended, supported mechanism: per-user installation
