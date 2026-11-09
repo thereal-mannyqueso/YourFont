@@ -1,0 +1,17 @@
+<Project>
+  <!--
+    Settings shared by every project in the solution.
+    Keeping them here means each .csproj only lists what is unique to it.
+  -->
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <!-- Surface code-style and analyzer warnings during build so problems are never silent. -->
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <Company>FontBook</Company>
+    <Product>FontBook for Windows</Product>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+</Project>

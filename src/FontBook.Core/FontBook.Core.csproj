@@ -1,0 +1,12 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    FontBook.Core: models, service contracts (interfaces) and pure business rules.
+    It has NO dependency on WPF, SQLite or Windows APIs, so it is easy to unit test
+    and can never accidentally reach into the UI.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+</Project>

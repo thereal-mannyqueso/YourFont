@@ -1,0 +1,128 @@
+﻿<UserControl x:Class="FontBook.App.Views.SidebarView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:FontBook.App.ViewModels"
+             xmlns:behaviors="clr-namespace:FontBook.App.Behaviors"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:SidebarViewModel}"
+             x:Name="Root">
+
+    <UserControl.Resources>
+        <!-- Count shown at the right of an entry; hidden when zero. -->
+        <Style x:Key="CountText" TargetType="TextBlock" BasedOn="{StaticResource Text.Caption}">
+            <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Text" Value="{Binding Count}" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Count}" Value="0">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- A fixed sidebar entry (Library and Font Vault sections). -->
+        <DataTemplate x:Key="NavItemTemplate" DataType="{x:Type vm:NavigationItemViewModel}">
+            <RadioButton Style="{StaticResource NavItem}"
+                         IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                         AutomationProperties.Name="{Binding Title}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Style="{StaticResource Icon}" Text="{Binding Glyph}" FontSize="15" Foreground="{DynamicResource AccentBrush}" />
+                    <TextBlock Grid.Column="1" Text="{Binding Title}" Margin="12,0,8,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Grid.Column="2" Style="{StaticResource CountText}" />
+                </Grid>
+            </RadioButton>
+        </DataTemplate>
+
+        <!-- A user collection: indented, renamable inline, with a context menu. -->
+        <DataTemplate x:Key="CollectionItemTemplate" DataType="{x:Type vm:NavigationItemViewModel}">
+            <RadioButton Style="{StaticResource NavItem}" Padding="34,0,10,0"
+                         IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                         Tag="{Binding DataContext, ElementName=Root}"
+                         AutomationProperties.Name="{Binding Title}">
+                <RadioButton.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="Rename"
+                                  Command="{Binding PlacementTarget.Tag.BeginRenameCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                  CommandParameter="{Binding}">
+                            <MenuItem.Icon>
+                                <TextBlock Style="{StaticResource Icon}" Text="&#xE8AC;" FontSize="14" />
+                            </MenuItem.Icon>
+                        </MenuItem>
+                        <Separator />
+                        <MenuItem Header="Delete Collection&#x2026;"
+                                  Command="{Binding PlacementTarget.Tag.DeleteCollectionCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                  CommandParameter="{Binding}">
+                            <MenuItem.Icon>
+                                <TextBlock Style="{StaticResource Icon}" Text="&#xE74D;" FontSize="14" />
+                            </MenuItem.Icon>
+                        </MenuItem>
+                    </ContextMenu>
+                </RadioButton.ContextMenu>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Style="{StaticResource Icon}" Text="{Binding Glyph}" FontSize="14" Foreground="{DynamicResource AccentBrush}" />
+                    <TextBlock Grid.Column="1" Text="{Binding Title}" Margin="12,0,8,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                               Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibilityEx}, ConverterParameter=Invert}" />
+                    <TextBox Grid.Column="1" Grid.ColumnSpan="2" Margin="6,0,0,0" MinHeight="26" Padding="6,0"
+                             Style="{StaticResource FieldTextBox}"
+                             AutomationProperties.Name="Collection name"
+                             MaxLength="100"
+                             Text="{Binding EditText, UpdateSourceTrigger=PropertyChanged}"
+                             Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibility}}"
+                             behaviors:TextBoxBehaviors.FocusWhenVisible="True"
+                             behaviors:TextBoxBehaviors.CommandParameter="{Binding}"
+                             behaviors:TextBoxBehaviors.EnterCommand="{Binding DataContext.CommitRenameCommand, ElementName=Root}"
+                             behaviors:TextBoxBehaviors.EscapeCommand="{Binding DataContext.CancelRenameCommand, ElementName=Root}"
+                             behaviors:TextBoxBehaviors.LostFocusCommand="{Binding DataContext.CommitRenameCommand, ElementName=Root}" />
+                    <TextBlock Grid.Column="2" Style="{StaticResource CountText}"
+                               Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibilityEx}, ConverterParameter=Invert}" />
+                </Grid>
+            </RadioButton>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+        <StackPanel Margin="0,2,0,8">
+            <TextBlock Text="LIBRARY" Style="{StaticResource Text.SectionHeader}" Margin="20,6,0,6" />
+            <ItemsControl ItemsSource="{Binding LibraryItems}" ItemTemplate="{StaticResource NavItemTemplate}" Focusable="False" />
+
+            <TextBlock Text="FONT VAULT" Style="{StaticResource Text.SectionHeader}" Margin="20,18,0,6" />
+            <ContentControl Content="{Binding ImportedItem}" ContentTemplate="{StaticResource NavItemTemplate}" Focusable="False" />
+
+            <!-- "Custom Collections" row with a + button to create a collection. -->
+            <RadioButton Style="{StaticResource NavItem}" DataContext="{Binding CustomCollectionsItem}"
+                         IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                         Padding="12,0,4,0"
+                         AutomationProperties.Name="{Binding Title}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Style="{StaticResource Icon}" Text="{Binding Glyph}" FontSize="15" Foreground="{DynamicResource AccentBrush}" />
+                    <TextBlock Grid.Column="1" Text="{Binding Title}" Margin="12,0,8,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                    <Button Grid.Column="2" Style="{StaticResource SubtleButton}" MinWidth="26" MinHeight="26" Padding="0"
+                            Command="{Binding DataContext.NewCollectionCommand, ElementName=Root}"
+                            ToolTip="New collection" AutomationProperties.Name="New collection">
+                        <TextBlock Style="{StaticResource Icon}" Text="&#xE710;" FontSize="12" />
+                    </Button>
+                </Grid>
+            </RadioButton>
+            <ItemsControl ItemsSource="{Binding Collections}" ItemTemplate="{StaticResource CollectionItemTemplate}" Focusable="False" />
+
+            <ContentControl Content="{Binding RecentlyAddedItem}" ContentTemplate="{StaticResource NavItemTemplate}" Focusable="False" />
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

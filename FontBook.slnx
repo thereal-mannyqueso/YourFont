@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/FontBook.App/FontBook.App.csproj" />
+    <Project Path="src/FontBook.Core/FontBook.Core.csproj" />
+    <Project Path="src/FontBook.Infrastructure/FontBook.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/FontBook.Tests/FontBook.Tests.csproj" />
+  </Folder>
+</Solution>

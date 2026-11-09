@@ -1,0 +1,9 @@
+# Normalize line endings in the repository; check out with Windows (CRLF) endings.
+* text=auto eol=crlf
+
+*.png binary
+*.ico binary
+*.ttf binary
+*.otf binary
+*.ttc binary
+*.db binary

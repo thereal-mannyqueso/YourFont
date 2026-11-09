@@ -1,0 +1,48 @@
+<!--
+  Default templates for FontBook's custom controls (WPF looks them up here by convention).
+-->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:controls="clr-namespace:FontBook.App.Controls">
+
+    <Style TargetType="controls:FontPreview">
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="IsTabStop" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="controls:FontPreview">
+                    <StackPanel>
+                        <TextBlock x:Name="CaptionText" Text="{TemplateBinding Caption}" Margin="0,0,0,6"
+                                   FontFamily="Segoe UI Variable Text, Segoe UI" FontSize="12"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" />
+                        <TextBlock x:Name="Specimen"
+                                   Text="{TemplateBinding DisplayText}"
+                                   FontFamily="{TemplateBinding PreviewFontFamily}"
+                                   FontWeight="{TemplateBinding PreviewFontWeight}"
+                                   FontStyle="{TemplateBinding PreviewFontStyle}"
+                                   FontStretch="{TemplateBinding PreviewFontStretch}"
+                                   FontSize="{TemplateBinding DipFontSize}"
+                                   Foreground="{TemplateBinding Foreground}"
+                                   TextWrapping="Wrap"
+                                   TextOptions.TextFormattingMode="Ideal"
+                                   TextOptions.TextRenderingMode="Auto" />
+                    </StackPanel>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="Caption" Value="{x:Null}">
+                            <Setter TargetName="CaptionText" Property="Visibility" Value="Collapsed" />
+                        </Trigger>
+                        <Trigger Property="IsSingleLine" Value="True">
+                            <Setter TargetName="Specimen" Property="TextWrapping" Value="NoWrap" />
+                            <Setter TargetName="Specimen" Property="TextTrimming" Value="CharacterEllipsis" />
+                        </Trigger>
+                        <Trigger Property="PreviewFontFamily" Value="{x:Null}">
+                            <Setter TargetName="Specimen" Property="FontFamily" Value="{Binding FontFamily, RelativeSource={RelativeSource TemplatedParent}}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+</ResourceDictionary>
