@@ -106,6 +106,14 @@
                                         <TextBlock Style="{StaticResource Icon}" Text="&#xE738;" FontSize="14" />
                                     </MenuItem.Icon>
                                 </MenuItem>
+                                <MenuItem Header="Remove from Font Vault&#x2026;"
+                                          Visibility="{Binding IsImported, Converter={StaticResource BoolToVisibility}}"
+                                          Command="{Binding PlacementTarget.Tag.RemoveFromVaultCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                          CommandParameter="{Binding}">
+                                    <MenuItem.Icon>
+                                        <TextBlock Style="{StaticResource Icon}" Text="&#xE74D;" FontSize="14" />
+                                    </MenuItem.Icon>
+                                </MenuItem>
                             </ContextMenu>
                         </Grid.ContextMenu>
 
@@ -138,6 +146,9 @@
                        HorizontalAlignment="Center" Margin="0,14,0,6" />
             <TextBlock Text="{Binding EmptyMessage}" Style="{StaticResource Text.Caption}" TextAlignment="Center"
                        TextWrapping="Wrap" TextTrimming="None" />
+            <Button Style="{StaticResource AccentButton}" Content="Import Fonts&#x2026;" Margin="0,18,0,0" HorizontalAlignment="Center"
+                    Command="{Binding ImportFontsCommand}" AutomationProperties.Name="Import Fonts"
+                    Visibility="{Binding ShowImportAction, Converter={StaticResource BoolToVisibility}}" />
         </StackPanel>
 
         <TextBlock Grid.Row="1" Text="Loading fonts…" Style="{StaticResource Text.Caption}"

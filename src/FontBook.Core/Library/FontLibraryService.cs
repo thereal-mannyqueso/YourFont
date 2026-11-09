@@ -2,6 +2,7 @@ using FontBook.Core.Data;
 using FontBook.Core.Models;
 using FontBook.Core.Search;
 using FontBook.Core.Services;
+using FontBook.Core.Vault;
 
 namespace FontBook.Core.Library;
 
@@ -17,6 +18,9 @@ public interface IFontLibraryService
     IReadOnlyList<FontFamilyInfo> Families { get; }
 
     Task LoadAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Re-reads only the Font Vault (after an import or removal); installed fonts are kept as they are.</summary>
+    Task RefreshVaultAsync(CancellationToken cancellationToken = default);
 
     /// <summary>Families in <paramref name="scope"/> that match <paramref name="searchText"/>, in display order.</summary>
     IReadOnlyList<FontFamilyInfo> Query(LibraryScope scope, string? searchText = null);
@@ -37,6 +41,7 @@ public interface IFontLibraryService
 
 public sealed class FontLibraryService(
     IFontDiscoveryService discovery,
+    IFontVault vault,
     IFavoritesRepository favoritesRepository,
     ICollectionRepository collectionRepository,
     TimeProvider timeProvider) : IFontLibraryService
@@ -54,11 +59,12 @@ public sealed class FontLibraryService(
 
     public async Task LoadAsync(CancellationToken cancellationToken = default)
     {
-        var families = await discovery.DiscoverAsync(cancellationToken).ConfigureAwait(false);
+        var installed = await discovery.DiscoverAsync(cancellationToken).ConfigureAwait(false);
+        var imported = await vault.GetFamiliesAsync(cancellationToken).ConfigureAwait(false);
         var favorites = await favoritesRepository.GetAllAsync(cancellationToken).ConfigureAwait(false);
         var memberships = await collectionRepository.GetAllMembershipsAsync(cancellationToken).ConfigureAwait(false);
 
-        _families = [.. families.OrderBy(f => f.FamilyName, StringComparer.CurrentCultureIgnoreCase)];
+        SetFamilies(installed.Concat(imported));
 
         _favorites.Clear();
         _favorites.UnionWith(favorites);
@@ -69,6 +75,15 @@ public sealed class FontLibraryService(
             GetOrCreateMembers(membership.CollectionId).Add(membership.FontKey);
         }
     }
+
+    public async Task RefreshVaultAsync(CancellationToken cancellationToken = default)
+    {
+        var imported = await vault.GetFamiliesAsync(cancellationToken).ConfigureAwait(false);
+        SetFamilies(_families.Where(f => f.Source != FontSource.Imported).Concat(imported));
+    }
+
+    private void SetFamilies(IEnumerable<FontFamilyInfo> families)
+        => _families = [.. families.OrderBy(f => f.FamilyName, StringComparer.CurrentCultureIgnoreCase)];
 
     public IReadOnlyList<FontFamilyInfo> Query(LibraryScope scope, string? searchText = null)
     {

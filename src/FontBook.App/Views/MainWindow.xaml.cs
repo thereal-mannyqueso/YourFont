@@ -69,6 +69,32 @@ public partial class MainWindow : Window
             : new Thickness(0);
     }
 
+    // ----- Drag and drop: shows the drop target and hands the dropped paths to the view model. -----
+
+    private void OnDragEnter(object sender, DragEventArgs e) => UpdateDrag(e);
+
+    private void OnDragOver(object sender, DragEventArgs e) => UpdateDrag(e);
+
+    private void OnDragLeave(object sender, DragEventArgs e) => DropOverlay.Visibility = Visibility.Collapsed;
+
+    private async void OnDrop(object sender, DragEventArgs e)
+    {
+        DropOverlay.Visibility = Visibility.Collapsed;
+        if (e.Data.GetData(DataFormats.FileDrop) is string[] paths)
+        {
+            e.Handled = true;
+            await _viewModel.ImportPathsAsync(paths);
+        }
+    }
+
+    private void UpdateDrag(DragEventArgs e)
+    {
+        var hasFiles = e.Data.GetDataPresent(DataFormats.FileDrop);
+        e.Effects = hasFiles ? DragDropEffects.Copy : DragDropEffects.None;
+        DropOverlay.Visibility = hasFiles ? Visibility.Visible : Visibility.Collapsed;
+        e.Handled = true;
+    }
+
     private void OnFindExecuted(object sender, ExecutedRoutedEventArgs e)
     {
         SearchTextBox.Focus();

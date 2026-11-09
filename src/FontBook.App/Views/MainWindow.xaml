@@ -14,7 +14,9 @@
         FontFamily="{StaticResource UiFont}" FontSize="13"
         Foreground="{DynamicResource TextPrimaryBrush}"
         Background="{DynamicResource WindowBackgroundBrush}"
-        UseLayoutRounding="True">
+        UseLayoutRounding="True"
+        AllowDrop="True"
+        DragEnter="OnDragEnter" DragOver="OnDragOver" DragLeave="OnDragLeave" Drop="OnDrop">
 
     <!--
       WindowChrome extends our content into the title bar area (like File Explorer and Settings).
@@ -26,6 +28,11 @@
         <WindowChrome CaptionHeight="48" ResizeBorderThickness="6" GlassFrameThickness="-1"
                       CornerRadius="0" UseAeroCaptionButtons="True" />
     </WindowChrome.WindowChrome>
+
+    <Window.InputBindings>
+        <!-- Ctrl+O imports fonts into the Font Vault. -->
+        <KeyBinding Modifiers="Control" Key="O" Command="{Binding ImportFontsCommand}" />
+    </Window.InputBindings>
 
     <Window.CommandBindings>
         <!-- Ctrl+F focuses the search box. -->
@@ -164,6 +171,73 @@
 
                 <GridSplitter Grid.Column="1" Style="{StaticResource PaneSplitter}" HorizontalAlignment="Left"
                               Margin="-3,0,0,0" ResizeBehavior="PreviousAndCurrent" />
+
+                <!-- Notification bar (import results etc.) -->
+                <Border Grid.ColumnSpan="2" VerticalAlignment="Bottom" HorizontalAlignment="Center" MaxWidth="680" Margin="24,0,24,20"
+                        Padding="14,10,6,10" CornerRadius="8" BorderThickness="1"
+                        Background="{DynamicResource PopupBackgroundBrush}" BorderBrush="{DynamicResource PopupStrokeBrush}"
+                        Visibility="{Binding Notification, Converter={StaticResource NullToVisibility}}"
+                        AutomationProperties.Name="Notification" AutomationProperties.LiveSetting="Polite">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="14" ShadowDepth="3" Direction="270" Opacity="0.22" />
+                    </Border.Effect>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock FontSize="15" Margin="0,0,10,0">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource Icon}">
+                                    <Setter Property="Text" Value="&#xE73E;" />
+                                    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding NotificationIsWarning}" Value="True">
+                                            <Setter Property="Text" Value="&#xE7BA;" />
+                                            <Setter Property="Foreground" Value="{DynamicResource FavoriteBrush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <TextBlock Grid.Column="1" Text="{Binding Notification}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                        <Button Grid.Column="2" Style="{StaticResource SubtleButton}" MinWidth="28" MinHeight="28" Padding="0" Margin="8,0,0,0"
+                                Command="{Binding DismissNotificationCommand}" ToolTip="Dismiss" AutomationProperties.Name="Dismiss notification">
+                            <TextBlock Style="{StaticResource Icon}" Text="&#xE711;" FontSize="10" />
+                        </Button>
+                    </Grid>
+                </Border>
+
+                <!-- Import in progress -->
+                <Border Grid.ColumnSpan="2" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,20"
+                        Padding="16,10" CornerRadius="8" BorderThickness="1"
+                        Background="{DynamicResource PopupBackgroundBrush}" BorderBrush="{DynamicResource PopupStrokeBrush}"
+                        Visibility="{Binding IsImporting, Converter={StaticResource BoolToVisibility}}">
+                    <TextBlock Text="Importing fonts into the Font Vault&#x2026;" />
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- Drag-and-drop target, shown while files are dragged over the window. -->
+        <Border x:Name="DropOverlay" Grid.Row="1" Grid.ColumnSpan="2" Margin="12" CornerRadius="12"
+                Visibility="Collapsed" IsHitTestVisible="False" Panel.ZIndex="10">
+            <Border.Background>
+                <SolidColorBrush Color="{DynamicResource AccentColor}" Opacity="0.10" />
+            </Border.Background>
+            <Grid>
+                <Rectangle RadiusX="12" RadiusY="12" StrokeThickness="2" StrokeDashArray="6 4"
+                           Stroke="{DynamicResource AccentBrush}" />
+                <Border HorizontalAlignment="Center" VerticalAlignment="Center" Padding="28,20" CornerRadius="12"
+                        Background="{DynamicResource PopupBackgroundBrush}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource Icon}" Text="&#xE8B5;" FontSize="32" Foreground="{DynamicResource AccentBrush}" />
+                        <TextBlock Text="Drop to import into the Font Vault" Style="{StaticResource Text.BodyStrong}" FontSize="15"
+                                   HorizontalAlignment="Center" Margin="0,12,0,4" />
+                        <TextBlock Text="FontBook keeps its own copy. Your files stay untouched." Style="{StaticResource Text.Caption}"
+                                   HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Border>
             </Grid>
         </Border>
 

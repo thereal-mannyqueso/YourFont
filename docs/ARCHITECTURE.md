@@ -95,6 +95,7 @@ toward Core, so business rules can be tested without starting the UI.
 | `favorites` | font keys the user starred |
 | `collections` | user collections (names are unique, ignoring case) |
 | `collection_fonts` | which fonts are in which collection (deleted automatically with the collection) |
+| `vault_files` (v2) | one row per imported file: content hash, stored name, original name/path, size, import time |
 
 ### 8. Font keys
 Favorites and collections store a **font key**, such as `system:segoe ui` or `vault:inter`.
@@ -136,6 +137,23 @@ checks every installed font against WPF's own `GlyphTypeface.FamilyNames`.
 
 **Known limits:** `.fon` bitmap fonts are skipped. Variable fonts (e.g. Bahnschrift, Segoe UI Variable)
 show only their default style for now; named instances need the DirectWrite renderer described above.
+
+## Font Vault (Milestone 2)
+
+`IFontVault` (Core) / `FontVaultService` (Infrastructure). The Vault is FontBook's own folder,
+`%LOCALAPPDATA%\FontBook\Vault`, completely separate from Windows' font folders.
+
+- **Import:** each file is opened read-only, hashed (SHA-256), and copied to `Vault\<hash>.<ext>`.
+  The *copy* is then parsed to confirm it's a real font before the database row is written. Any failure
+  rolls back the copy. Content-hash names make duplicates (even renamed ones) easy to detect and store once.
+  Folders are searched recursively. Problems are reported per file instead of aborting the import.
+- **Preview without installing:** Vault families are built from the copies with the same reader and
+  grouping as installed fonts, and drawn from the copies with the same file-based rendering. Windows never sees them.
+- **Remove:** allowed only for `FontSource.Imported` families. Every file whose faces belong to the family is
+  removed from the database and deleted, and each delete is checked to be inside the Vault folder. If Windows still
+  has a previewed file open, the row is removed anyway and `CleanUpAsync` (run at start-up) deletes the leftover file.
+- **Library:** `FontLibraryService` merges installed and Vault families; `RefreshVaultAsync` reloads just the Vault after changes.
+- **Keys:** Vault fonts use `vault:<family>` keys, so favorites and collections never mix them up with installed fonts.
 
 ## Planned: installation (Milestone 3)
 `IFontInstallationService` documents the intended, supported mechanism: per-user installation

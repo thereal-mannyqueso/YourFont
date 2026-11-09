@@ -36,6 +36,7 @@ public static class AppServices
         // WPF-specific services (FontBook.App).
         services.AddSingleton<IThemeService, ThemeService>();
         services.AddSingleton<IDialogService, DialogService>();
+        services.AddSingleton<IFilePickerService, FilePickerService>();
         services.AddSingleton<IFontPreviewProvider, WpfFontPreviewProvider>();
         services.AddSingleton<DeferredSettingsWriter>();
 

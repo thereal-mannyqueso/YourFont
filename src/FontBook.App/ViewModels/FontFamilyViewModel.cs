@@ -42,6 +42,9 @@ public sealed partial class FontFamilyViewModel : ObservableObject
     /// <summary>The face shown when the family is first selected: Regular if it exists.</summary>
     public FontFaceViewModel? DefaultFace { get; }
 
+    /// <summary>True for fonts imported into the Font Vault (they can be removed from it).</summary>
+    public bool IsImported => Model.Source == FontSource.Imported;
+
     public string StyleCountText => Faces.Count == 1 ? "1 style" : $"{Faces.Count} styles";
 
     public string SourceText => Model.Source switch

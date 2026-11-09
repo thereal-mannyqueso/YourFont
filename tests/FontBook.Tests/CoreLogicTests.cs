@@ -148,6 +148,7 @@ public sealed class FontLibraryServiceTests
 
     private static FontLibraryService CreateService(TestDatabase db) => new(
         new FixedDiscovery(Families),
+        new EmptyVault(),
         new SqliteFavoritesRepository(db.Connections),
         new SqliteCollectionRepository(db.Connections),
         new FixedTimeProvider(Now));
@@ -159,7 +160,20 @@ public sealed class FontLibraryServiceTests
         public Task<IReadOnlyList<FontFamilyInfo>> DiscoverAsync(CancellationToken cancellationToken = default) => Task.FromResult(families);
     }
 
-    private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
+    private sealed class EmptyVault : FontBook.Core.Vault.IFontVault
+    {
+        public Task<IReadOnlyList<FontFamilyInfo>> GetFamiliesAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<FontFamilyInfo>>([]);
+
+        public Task<FontBook.Core.Vault.VaultImportResult> ImportAsync(IReadOnlyList<string> paths, CancellationToken cancellationToken = default)
+            => Task.FromResult(FontBook.Core.Vault.VaultImportResult.Empty);
+
+        public Task<int> RemoveFamilyAsync(FontFamilyInfo family, CancellationToken cancellationToken = default) => Task.FromResult(0);
+
+        public Task CleanUpAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+
+    internal sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => now;
     }

@@ -44,6 +44,20 @@ public sealed class DatabaseInitializer(SqliteConnectionFactory connectionFactor
 
         CREATE INDEX ix_collection_fonts_font_key ON collection_fonts(font_key);
         """,
+
+        // Version 2 — Font Vault: one row per imported file. The file itself lives in the
+        // Vault folder under its content hash, so identical files are stored only once.
+        """
+        CREATE TABLE vault_files (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            sha256        TEXT NOT NULL UNIQUE,
+            stored_name   TEXT NOT NULL,
+            original_name TEXT NOT NULL,
+            original_path TEXT NOT NULL,
+            size_bytes    INTEGER NOT NULL,
+            imported_at   TEXT NOT NULL
+        );
+        """,
     ];
 
     /// <summary>The schema version this build of FontBook expects.</summary>

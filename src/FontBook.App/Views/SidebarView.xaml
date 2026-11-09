@@ -97,7 +97,14 @@
             <TextBlock Text="LIBRARY" Style="{StaticResource Text.SectionHeader}" Margin="20,6,0,6" />
             <ItemsControl ItemsSource="{Binding LibraryItems}" ItemTemplate="{StaticResource NavItemTemplate}" Focusable="False" />
 
-            <TextBlock Text="FONT VAULT" Style="{StaticResource Text.SectionHeader}" Margin="20,18,0,6" />
+            <Grid Margin="20,10,14,2">
+                <TextBlock Text="FONT VAULT" Style="{StaticResource Text.SectionHeader}" VerticalAlignment="Center" />
+                <Button HorizontalAlignment="Right" Style="{StaticResource SubtleButton}" MinWidth="26" MinHeight="26" Padding="0"
+                        Command="{Binding DataContext.ImportFontsCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                        ToolTip="Import fonts into the Font Vault (Ctrl+O)" AutomationProperties.Name="Import fonts">
+                    <TextBlock Style="{StaticResource Icon}" Text="&#xE8B5;" FontSize="13" />
+                </Button>
+            </Grid>
             <ContentControl Content="{Binding ImportedItem}" ContentTemplate="{StaticResource NavItemTemplate}" Focusable="False" />
 
             <!-- "Custom Collections" row with a + button to create a collection. -->

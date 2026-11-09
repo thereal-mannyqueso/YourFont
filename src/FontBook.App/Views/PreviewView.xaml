@@ -93,6 +93,18 @@
                         </StackPanel>
                     </Button>
 
+                    <!-- Remove (Font Vault fonts only) -->
+                    <Button Style="{StaticResource SubtleButton}" Padding="10,6" Margin="4,0,0,0"
+                            Command="{Binding RemoveFromVaultCommand}" CommandParameter="{Binding Preview.Family}"
+                            Visibility="{Binding Preview.Family.IsImported, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}"
+                            ToolTip="Delete FontBook's copy. Your original file is not affected."
+                            AutomationProperties.Name="Remove from Font Vault">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource Icon}" Text="&#xE74D;" FontSize="14" />
+                            <TextBlock Text="Remove" Margin="8,0,0,0" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+
                     <!-- Collections menu -->
                     <ToggleButton x:Name="CollectionsToggle" Style="{StaticResource SubtleButton}" Padding="10,6" Margin="4,0,0,0"
                                   AutomationProperties.Name="Collections"

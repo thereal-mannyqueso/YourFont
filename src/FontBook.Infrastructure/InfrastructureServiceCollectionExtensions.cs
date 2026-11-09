@@ -1,7 +1,9 @@
 using FontBook.Core.Data;
 using FontBook.Core.Services;
 using FontBook.Infrastructure.Database;
+using FontBook.Core.Vault;
 using FontBook.Infrastructure.Fonts.Discovery;
+using FontBook.Infrastructure.Vault;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace FontBook.Infrastructure;
@@ -27,6 +29,10 @@ public static class InfrastructureServiceCollectionExtensions
         // Fonts installed in Windows (read-only: registry list + font files).
         services.AddSingleton<IInstalledFontFileSource, WindowsRegistryFontFileSource>();
         services.AddSingleton<IFontDiscoveryService, WindowsFontDiscoveryService>();
+
+        // Font Vault (imported copies, kept apart from installed fonts).
+        services.AddSingleton<SqliteVaultRepository>();
+        services.AddSingleton<IFontVault, FontVaultService>();
 
         return services;
     }

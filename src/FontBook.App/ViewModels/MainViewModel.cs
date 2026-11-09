@@ -9,6 +9,7 @@ using FontBook.App.Services.Theming;
 using FontBook.Core.Data;
 using FontBook.Core.Library;
 using FontBook.Core.Models;
+using FontBook.Core.Vault;
 using Microsoft.Extensions.Logging;
 
 namespace FontBook.App.ViewModels;
@@ -17,7 +18,7 @@ namespace FontBook.App.ViewModels;
 /// The main window's view model. It connects the sidebar, the font list and the preview,
 /// and owns app-wide preferences (theme, pane widths).
 /// </summary>
-public sealed partial class MainViewModel : ObservableObject
+public sealed partial class MainViewModel : ObservableObject, IDisposable
 {
     public const double DefaultSidebarWidth = 240;
     public const double DefaultFontListWidth = 300;
@@ -28,7 +29,10 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly IThemeService _themes;
     private readonly IFontPreviewProvider _fonts;
     private readonly IDialogService _dialogs;
+    private readonly IFontVault _vault;
+    private readonly IFilePickerService _filePicker;
     private readonly ILogger<MainViewModel> _logger;
+    private CancellationTokenSource? _notificationTimer;
     private readonly Dictionary<string, FontFamilyViewModel> _familyViewModels = new(StringComparer.Ordinal);
 
     private bool _isRefreshingList;
@@ -43,8 +47,12 @@ public sealed partial class MainViewModel : ObservableObject
         IThemeService themes,
         IFontPreviewProvider fonts,
         IDialogService dialogs,
+        IFontVault vault,
+        IFilePickerService filePicker,
         ILogger<MainViewModel> logger)
     {
+        _vault = vault;
+        _filePicker = filePicker;
         _library = library;
         _settings = settings;
         _settingsWriter = settingsWriter;
@@ -103,6 +111,20 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string _emptyMessage = string.Empty;
 
+    /// <summary>True when the empty state should offer an "Import Fonts" button.</summary>
+    [ObservableProperty]
+    private bool _showImportAction;
+
+    [ObservableProperty]
+    private bool _isImporting;
+
+    /// <summary>Short message shown in the notification bar (e.g. import results). Null hides the bar.</summary>
+    [ObservableProperty]
+    private string? _notification;
+
+    [ObservableProperty]
+    private bool _notificationIsWarning;
+
     [ObservableProperty]
     private AppTheme _theme = AppTheme.System;
 
@@ -119,14 +141,10 @@ public sealed partial class MainViewModel : ObservableObject
         {
             await LoadSettingsAsync();
             await Preview.LoadSettingsAsync();
+            await _vault.CleanUpAsync(); // finish deleting Vault copies that were in use last time
             await _library.LoadAsync();
             await Sidebar.LoadAsync();
-
-            _familyViewModels.Clear();
-            foreach (var family in _library.Families)
-            {
-                _familyViewModels[family.Key] = new FontFamilyViewModel(family, _fonts, _library.IsFavorite(family.Key));
-            }
+            SyncFamilyViewModels();
 
             _isInitialized = true;
             OnPropertyChanged(nameof(HasCollections));
@@ -142,6 +160,13 @@ public sealed partial class MainViewModel : ObservableObject
         {
             IsLoading = false;
         }
+    }
+
+    public void Dispose()
+    {
+        _notificationTimer?.Cancel();
+        _notificationTimer?.Dispose();
+        _notificationTimer = null;
     }
 
     /// <summary>Writes any setting changes that are still waiting in the debounce buffer.</summary>
@@ -186,6 +211,171 @@ public sealed partial class MainViewModel : ObservableObject
 
     [RelayCommand]
     private void ClearSearch() => SearchText = string.Empty;
+
+    /// <summary>Opens the file picker and imports the chosen fonts into the Font Vault.</summary>
+    [RelayCommand]
+    private async Task ImportFontsAsync()
+    {
+        var files = _filePicker.PickFontFiles();
+        if (files.Count > 0)
+        {
+            await ImportPathsAsync(files);
+        }
+    }
+
+    /// <summary>Imports files and/or folders (from the picker or drag and drop) into the Font Vault.</summary>
+    [RelayCommand]
+    public async Task ImportPathsAsync(IReadOnlyList<string>? paths)
+    {
+        if (paths is not { Count: > 0 } || IsImporting)
+        {
+            return;
+        }
+
+        IsImporting = true;
+        try
+        {
+            var result = await _vault.ImportAsync(paths);
+            if (result.Imported.Count > 0)
+            {
+                await _library.RefreshVaultAsync();
+                SyncFamilyViewModels();
+                SearchText = string.Empty;
+                Sidebar.Select(Sidebar.ImportedItem);
+                Sidebar.UpdateCounts();
+                RefreshList();
+
+                // Show the first newly imported family.
+                var first = VisibleFamilies.FirstOrDefault(f => result.ImportedFamilyNames.Contains(f.FamilyName, StringComparer.OrdinalIgnoreCase));
+                if (first is not null)
+                {
+                    SelectedFamily = first;
+                }
+            }
+
+            ShowNotification(DescribeImport(result), isWarning: result.Failed.Count > 0 && result.Imported.Count == 0);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Data.Common.DbException)
+        {
+            _logger.LogError(ex, "Import failed");
+            _dialogs.ShowError("Couldn't import fonts", ex.Message);
+        }
+        finally
+        {
+            IsImporting = false;
+        }
+    }
+
+    /// <summary>Deletes FontBook's Vault copy of an imported family, after confirmation.</summary>
+    [RelayCommand]
+    private async Task RemoveFromVaultAsync(FontFamilyViewModel? family)
+    {
+        if (family is not { IsImported: true })
+        {
+            return; // installed fonts can never be removed through the Vault
+        }
+
+        var confirmed = _dialogs.Confirm(
+            "Remove from Font Vault",
+            $"Remove \"{family.FamilyName}\" from the Font Vault?\n\n" +
+            "FontBook deletes only its own copy. Your original font files and fonts installed in Windows are not affected.",
+            "Remove");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        try
+        {
+            var removed = await _vault.RemoveFamilyAsync(family.Model);
+            await _library.RefreshVaultAsync();
+            SyncFamilyViewModels();
+            Sidebar.UpdateCounts();
+            RefreshList();
+            ShowNotification($"Removed \"{family.FamilyName}\" from the Font Vault ({Plural(removed, "file")}).", isWarning: false);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or System.Data.Common.DbException)
+        {
+            _logger.LogError(ex, "Removing {Family} from the vault failed", family.FamilyName);
+            _dialogs.ShowError("Couldn't remove font", ex.Message);
+        }
+    }
+
+    [RelayCommand]
+    private void DismissNotification()
+    {
+        _notificationTimer?.Cancel();
+        Notification = null;
+    }
+
+    private void ShowNotification(string message, bool isWarning)
+    {
+        _notificationTimer?.Cancel();
+        _notificationTimer?.Dispose();
+        _notificationTimer = new CancellationTokenSource();
+        var token = _notificationTimer.Token;
+
+        NotificationIsWarning = isWarning;
+        Notification = message;
+        _ = HideNotificationLaterAsync(token);
+    }
+
+    private async Task HideNotificationLaterAsync(CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(8), token);
+            Notification = null;
+        }
+        catch (OperationCanceledException)
+        {
+            // A newer notification replaced this one.
+        }
+    }
+
+    private static string DescribeImport(VaultImportResult result)
+    {
+        var parts = new List<string>();
+        if (result.Imported.Count > 0)
+        {
+            parts.Add($"Imported {Plural(result.Imported.Count, "file")}");
+        }
+
+        if (result.Duplicates.Count > 0)
+        {
+            parts.Add($"{Plural(result.Duplicates.Count, "file")} already in the Vault");
+        }
+
+        if (result.Failed.Count > 0)
+        {
+            var first = result.Failed[0];
+            parts.Add(result.Failed.Count == 1
+                ? $"\"{first.FileName}\" couldn't be imported: {first.Reason}"
+                : $"{result.Failed.Count} files couldn't be imported (e.g. \"{first.FileName}\": {first.Reason})");
+        }
+
+        return parts.Count == 0 ? "No font files were found to import." : string.Join(" · ", parts);
+    }
+
+    private static string Plural(int count, string noun) => count == 1 ? $"1 {noun}" : $"{count} {noun}s";
+
+    /// <summary>Keeps one view model per family, reusing existing ones so favorites/selection stay intact.</summary>
+    private void SyncFamilyViewModels()
+    {
+        var previous = new Dictionary<string, FontFamilyViewModel>(_familyViewModels, StringComparer.Ordinal);
+        _familyViewModels.Clear();
+        foreach (var family in _library.Families)
+        {
+            _familyViewModels[family.Key] = previous.TryGetValue(family.Key, out var existing) && ReferenceEquals(existing.Model, family)
+                ? existing
+                : new FontFamilyViewModel(family, _fonts, _library.IsFavorite(family.Key));
+        }
+
+        if (SelectedFamily is not null && !_familyViewModels.ContainsKey(SelectedFamily.Key))
+        {
+            SelectedFamily = null;
+        }
+    }
 
     [RelayCommand]
     private async Task ToggleFavoriteAsync(FontFamilyViewModel? family)
@@ -330,6 +520,7 @@ public sealed partial class MainViewModel : ObservableObject
     private void UpdateEmptyState(LibraryScopeKind kind, int visibleCount, int totalCount)
     {
         IsEmpty = visibleCount == 0;
+        ShowImportAction = IsEmpty && totalCount == 0 && kind is LibraryScopeKind.ImportedFonts or LibraryScopeKind.RecentlyAdded;
         if (!IsEmpty)
         {
             return;
@@ -349,7 +540,7 @@ public sealed partial class MainViewModel : ObservableObject
             LibraryScopeKind.UserFonts => (Glyphs.Person, "No user fonts",
                 "Fonts installed only for your Windows account will appear here."),
             LibraryScopeKind.ImportedFonts => (Glyphs.Import, "Your Font Vault is empty",
-                "Importing font files into the Vault (to preview them without installing) arrives in the next milestone."),
+                "Import font files to preview them without installing. FontBook keeps its own copy; your originals stay untouched. You can also drag files or folders onto the window."),
             LibraryScopeKind.RecentlyAdded => (Glyphs.Recent, "Nothing added recently",
                 "Fonts you import into the Font Vault in the last 30 days will appear here."),
             LibraryScopeKind.AnyCollection => (Glyphs.Library, "No fonts in collections",

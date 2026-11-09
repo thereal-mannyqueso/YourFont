@@ -195,7 +195,7 @@ public sealed partial class SidebarViewModel : ObservableObject
     /// Makes <paramref name="item"/> the only selected entry. Each item also calls this when it
     /// becomes selected (mouse, keyboard or UI Automation), so navigation always follows selection.
     /// </summary>
-    private void Select(NavigationItemViewModel item)
+    public void Select(NavigationItemViewModel item)
     {
         if (_isSelecting)
         {
