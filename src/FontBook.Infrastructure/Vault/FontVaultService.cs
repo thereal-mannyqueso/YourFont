@@ -75,6 +75,7 @@ public sealed class FontVaultService(AppPaths paths, SqliteVaultRepository repos
 
             await repository.RemoveAsync(record.Id, cancellationToken).ConfigureAwait(false);
             TryDeleteVaultFile(path);
+            TryDeleteEmptyFolder(Path.GetDirectoryName(path)!);
             removed++;
         }
 
@@ -88,14 +89,48 @@ public sealed class FontVaultService(AppPaths paths, SqliteVaultRepository repos
             return;
         }
 
-        var referenced = (await repository.GetAllAsync(cancellationToken).ConfigureAwait(false))
-            .Select(r => r.StoredName)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var records = await repository.GetAllAsync(cancellationToken).ConfigureAwait(false);
+
+        // Older versions stored copies directly in the Vault folder; move them into their own sub-folder.
+        foreach (var record in records)
+        {
+            var legacy = Path.Combine(paths.VaultDirectory, record.StoredName);
+            var current = StoredPath(record);
+            if (File.Exists(legacy) && !File.Exists(current))
+            {
+                try
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(current)!);
+                    File.Move(legacy, current);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    logger.LogWarning(ex, "Couldn't move Vault file {Path} into its folder", legacy);
+                }
+            }
+        }
+
+        // Delete anything the database no longer refers to (removed fonts whose files were in use, partial copies).
+        var referencedFolders = records.Select(FolderName).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var referencedLegacy = records.Select(r => r.StoredName).ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach (var file in Directory.EnumerateFiles(paths.VaultDirectory))
         {
-            if (!referenced.Contains(Path.GetFileName(file)))
+            if (!referencedLegacy.Contains(Path.GetFileName(file)) || File.Exists(Path.Combine(paths.VaultDirectory, Path.GetFileNameWithoutExtension(file), Path.GetFileName(file))))
             {
                 TryDeleteVaultFile(file);
+            }
+        }
+
+        foreach (var folder in Directory.EnumerateDirectories(paths.VaultDirectory))
+        {
+            if (!referencedFolders.Contains(Path.GetFileName(folder)))
+            {
+                foreach (var file in Directory.EnumerateFiles(folder))
+                {
+                    TryDeleteVaultFile(file);
+                }
+
+                TryDeleteEmptyFolder(folder);
             }
         }
     }
@@ -129,8 +164,9 @@ public sealed class FontVaultService(AppPaths paths, SqliteVaultRepository repos
                 }
 
                 var storedName = hash + Path.GetExtension(source).ToLowerInvariant();
-                var finalPath = Path.Combine(paths.VaultDirectory, storedName);
+                var finalPath = Path.Combine(paths.VaultDirectory, hash, storedName);
                 var tempPath = finalPath + ".tmp";
+                Directory.CreateDirectory(Path.GetDirectoryName(finalPath)!);
 
                 // Copy (the original is only read), then check the copy really is a font.
                 File.Copy(source, tempPath, overwrite: true);
@@ -204,7 +240,30 @@ public sealed class FontVaultService(AppPaths paths, SqliteVaultRepository repos
         return Convert.ToHexStringLower(await SHA256.HashDataAsync(stream, cancellationToken).ConfigureAwait(false));
     }
 
-    private string StoredPath(VaultFileRecord record) => Path.Combine(paths.VaultDirectory, record.StoredName);
+    /// <summary>
+    /// Each copy lives in its own folder named after its content hash: Vault\&lt;hash&gt;\&lt;hash&gt;.ttf.
+    /// WPF caches what it finds in a font folder for the whole session; giving every file its own
+    /// folder means a removed font and a new font with the same name never share a cached folder
+    /// (that combination crashed DirectWrite with a stack overflow).
+    /// </summary>
+    private string StoredPath(VaultFileRecord record) => Path.Combine(paths.VaultDirectory, FolderName(record), record.StoredName);
+
+    private static string FolderName(VaultFileRecord record) => record.Sha256;
+
+    private void TryDeleteEmptyFolder(string folder)
+    {
+        try
+        {
+            if (Directory.Exists(folder) && !Directory.EnumerateFileSystemEntries(folder).Any())
+            {
+                Directory.Delete(folder);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogInformation(ex, "Vault folder {Folder} couldn't be removed yet", folder);
+        }
+    }
 
     private IReadOnlyList<FontFaceData> ReadFacesOrEmpty(string path)
     {

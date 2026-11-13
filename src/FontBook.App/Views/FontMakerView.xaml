@@ -1,0 +1,184 @@
+<UserControl x:Class="FontBook.App.Views.FontMakerView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:FontBook.App.ViewModels"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:FontMakerViewModel}">
+
+    <UserControl.Resources>
+        <Style x:Key="StepCard" TargetType="Border">
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="20,18" />
+            <Setter Property="Margin" Value="0,0,12,0" />
+            <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+        <Style x:Key="StepNumber" TargetType="Border">
+            <Setter Property="Width" Value="26" />
+            <Setter Property="Height" Value="26" />
+            <Setter Property="CornerRadius" Value="13" />
+            <Setter Property="Background" Value="{DynamicResource BadgeBackgroundBrush}" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+            <Setter Property="TextElement.Foreground" Value="{DynamicResource BadgeForegroundBrush}" />
+            <Setter Property="TextElement.FontWeight" Value="SemiBold" />
+        </Style>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+        <StackPanel Margin="32,24,32,32" MaxWidth="1100" HorizontalAlignment="Left">
+
+            <!-- Header -->
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Font Maker" Style="{StaticResource Text.Title}" />
+                <Border Style="{StaticResource Badge}" Margin="12,6,0,0"
+                        ToolTip="This feature is still being developed. Results depend on your pen and scan.">
+                    <TextBlock Text="Beta" />
+                </Border>
+            </StackPanel>
+            <TextBlock Text="Turn your handwriting into a real font you can preview, install and use in any app."
+                       Style="{StaticResource Text.Caption}" FontSize="13" Margin="0,4,0,20" TextTrimming="None" TextWrapping="Wrap" />
+
+            <!-- Steps -->
+            <UniformGrid Columns="3">
+                <Border Style="{StaticResource StepCard}">
+                    <StackPanel>
+                        <Border Style="{StaticResource StepNumber}"><TextBlock Text="1" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border>
+                        <TextBlock Text="Print the template" Style="{StaticResource Text.BodyStrong}" FontSize="15" Margin="0,12,0,6" />
+                        <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" TextTrimming="None"
+                                   Text="One page with boxes for A–Z, a–z, 0–9 and common punctuation. Works on Letter or A4 paper." />
+                        <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                            <Button Style="{StaticResource AccentButton}" Command="{Binding PrintTemplateCommand}" AutomationProperties.Name="Print template">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource Icon}" Text="&#xE749;" FontSize="13" Foreground="{DynamicResource TextOnAccentBrush}" />
+                                    <TextBlock Text="Print&#x2026;" Margin="8,0,0,0" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource SubtleButton}" Padding="10,6" Margin="6,0,0,0"
+                                    Command="{Binding SaveTemplateCommand}" AutomationProperties.Name="Save template as PNG">
+                                <TextBlock Text="Save as PNG&#x2026;" />
+                            </Button>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource StepCard}">
+                    <StackPanel>
+                        <Border Style="{StaticResource StepNumber}"><TextBlock Text="2" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border>
+                        <TextBlock Text="Fill it in" Style="{StaticResource Text.BodyStrong}" FontSize="15" Margin="0,12,0,6" />
+                        <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" TextTrimming="None" LineHeight="20">
+                            <Run Text="&#x2022; Use a dark felt-tip or gel pen" /><LineBreak />
+                            <Run Text="&#x2022; One character per box, not touching the edges" /><LineBreak />
+                            <Run Text="&#x2022; Sit letters on the dotted line; let g, j, p, q, y hang below" /><LineBreak />
+                            <Run Text="&#x2022; Leave a box empty to skip that character" />
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource StepCard}" Margin="0">
+                    <StackPanel>
+                        <Border Style="{StaticResource StepNumber}"><TextBlock Text="3" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border>
+                        <TextBlock Text="Scan and upload" Style="{StaticResource Text.BodyStrong}" FontSize="15" Margin="0,12,0,6" />
+                        <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" TextTrimming="None"
+                                   Text="Scan at 300 dpi, or take a straight, well-lit photo. All four black corner squares must be visible." />
+                        <Button Style="{StaticResource AccentButton}" Margin="0,14,0,0" HorizontalAlignment="Left"
+                                Command="{Binding ChooseScanCommand}" AutomationProperties.Name="Choose scan">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource Icon}" Text="&#xE8B5;" FontSize="13" Foreground="{DynamicResource TextOnAccentBrush}" />
+                                <TextBlock Text="Choose Scan&#x2026;" Margin="8,0,0,0" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Border>
+            </UniformGrid>
+
+            <!-- Working / errors -->
+            <TextBlock Text="{Binding BusyText}" Margin="2,20,0,0" Style="{StaticResource Text.Body}"
+                       Visibility="{Binding BusyText, Converter={StaticResource NullToVisibility}}" />
+            <Border Margin="0,20,0,0" Padding="14,10" CornerRadius="8" BorderThickness="1"
+                    Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource FavoriteBrush}"
+                    Visibility="{Binding ErrorText, Converter={StaticResource NullToVisibility}}"
+                    AutomationProperties.Name="Font Maker problem" AutomationProperties.LiveSetting="Polite">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource Icon}" Text="&#xE7BA;" Foreground="{DynamicResource FavoriteBrush}" Margin="0,0,10,0" />
+                    <TextBlock Text="{Binding ErrorText}" TextWrapping="Wrap" MaxWidth="900" VerticalAlignment="Center" />
+                </StackPanel>
+            </Border>
+
+            <!-- Results -->
+            <Grid Margin="0,24,0,0" Visibility="{Binding HasResult, Converter={StaticResource BoolToVisibility}}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Margin="0,0,24,0">
+                    <TextBlock Text="YOUR SCAN" Style="{StaticResource Text.SectionHeader}" Margin="0,0,0,8" />
+                    <Border CornerRadius="8" BorderThickness="1" BorderBrush="{DynamicResource CardStrokeBrush}" Background="White" ClipToBounds="True">
+                        <Image Source="{Binding ScanPreview}" Width="200" Stretch="Uniform" />
+                    </Border>
+                    <TextBlock Text="{Binding ScanFileName}" Style="{StaticResource Text.Caption}" Margin="0,6,0,0" MaxWidth="200" />
+                    <Button Style="{StaticResource SubtleButton}" Padding="8,4" Margin="-8,6,0,0" HorizontalAlignment="Left"
+                            Command="{Binding StartOverCommand}" AutomationProperties.Name="Start over">
+                        <TextBlock Text="Start over" Foreground="{DynamicResource AccentBrush}" />
+                    </Button>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1">
+                    <TextBlock Style="{StaticResource Text.Subtitle}">
+                        <Run Text="Found" />
+                        <Run Text="{Binding FoundCount, Mode=OneWay}" />
+                        <Run Text="of" />
+                        <Run Text="{Binding TotalCount, Mode=OneWay}" />
+                        <Run Text="characters" />
+                    </TextBlock>
+                    <TextBlock Style="{StaticResource Text.Caption}" Margin="0,4,0,12" TextWrapping="Wrap" TextTrimming="None"
+                               Text="Check that each drawing looks right. Empty boxes are skipped; apps will show those characters in another font." />
+
+                    <ItemsControl ItemsSource="{Binding Tiles}" Focusable="False" AutomationProperties.Name="Scanned characters">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type vm:GlyphTileViewModel}">
+                                <StackPanel Margin="0,0,6,8" Width="54">
+                                    <Border Height="48" CornerRadius="6" BorderThickness="1" BorderBrush="{DynamicResource CardStrokeBrush}" Background="White">
+                                        <Grid>
+                                            <Image Source="{Binding Image}" Stretch="Uniform" Margin="3" RenderOptions.BitmapScalingMode="HighQuality" />
+                                            <TextBlock Text="&#x2014;" Foreground="#B0B0B0" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                       Visibility="{Binding HasInk, Converter={StaticResource BoolToVisibilityEx}, ConverterParameter=Invert}" />
+                                        </Grid>
+                                    </Border>
+                                    <TextBlock Text="{Binding Label}" Style="{StaticResource Text.Caption}" HorizontalAlignment="Center" Margin="0,2,0,0" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <TextBlock Text="NAME YOUR FONT" Style="{StaticResource Text.SectionHeader}" Margin="0,16,0,8" />
+                    <StackPanel Orientation="Horizontal">
+                        <TextBox Style="{StaticResource FieldTextBox}" Width="280" MaxLength="40" Tag="Font name"
+                                 AutomationProperties.Name="Font name"
+                                 Text="{Binding FontName, UpdateSourceTrigger=PropertyChanged}" />
+                        <Button Style="{StaticResource AccentButton}" Margin="10,0,0,0" Command="{Binding CreateFontCommand}"
+                                AutomationProperties.Name="Create font">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource Icon}" Text="&#xE8D2;" FontSize="13" Foreground="{DynamicResource TextOnAccentBrush}" />
+                                <TextBlock Text="Create Font" Margin="8,0,0,0" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                    <TextBlock Style="{StaticResource Text.Caption}" Margin="0,8,0,0" TextWrapping="Wrap" TextTrimming="None"
+                               Text="Your font is added to the Font Vault, where you can preview it, add it to collections, and install it." />
+                </StackPanel>
+            </Grid>
+
+            <TextBlock Style="{StaticResource Text.Caption}" Margin="0,28,0,0" TextWrapping="Wrap" TextTrimming="None" Opacity="0.85"
+                       Text="Beta limitations: one style (Regular), automatic letter spacing, no kerning, and slightly smoothed strokes. Scan the page upright." />
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

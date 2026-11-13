@@ -64,7 +64,48 @@
                     <TextBlock Text="Sample data" />
                 </Border>
             </Grid>
-            <TextBlock Text="{Binding SectionSubtitle}" Style="{StaticResource Text.Caption}" Margin="0,2,0,0" />
+            <Grid Margin="0,2,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding SectionSubtitle}" Style="{StaticResource Text.Caption}" VerticalAlignment="Center" />
+
+                <!-- Sort menu -->
+                <ToggleButton x:Name="SortToggle" Grid.Column="1" Style="{StaticResource SubtleButton}" Padding="6,2" MinHeight="24" MinWidth="0"
+                              ToolTip="Sort fonts" AutomationProperties.Name="Sort fonts"
+                              IsChecked="{Binding IsSortMenuOpen, Mode=TwoWay}"
+                              IsHitTestVisible="{Binding IsOpen, ElementName=SortPopup, Converter={StaticResource InverseBoolean}}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource Icon}" Text="&#xE8CB;" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                        <TextBlock Text="{Binding SortLabel}" FontSize="12" Margin="6,0,4,0" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
+                        <TextBlock Style="{StaticResource Icon}" Text="&#xE70D;" FontSize="9" Margin="0,1,0,0" Foreground="{DynamicResource TextSecondaryBrush}" />
+                    </StackPanel>
+                </ToggleButton>
+                <Popup x:Name="SortPopup" PlacementTarget="{Binding ElementName=SortToggle}" Placement="Bottom" VerticalOffset="2" HorizontalOffset="-150"
+                       IsOpen="{Binding IsChecked, ElementName=SortToggle, Mode=TwoWay}"
+                       StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade">
+                    <Border Margin="8" Width="250" Padding="4,6" CornerRadius="8"
+                            Background="{DynamicResource PopupBackgroundBrush}" BorderBrush="{DynamicResource PopupStrokeBrush}" BorderThickness="1"
+                            TextElement.Foreground="{DynamicResource TextPrimaryBrush}" TextElement.FontFamily="{StaticResource UiFont}" TextElement.FontSize="13">
+                        <Border.Effect>
+                            <DropShadowEffect BlurRadius="14" ShadowDepth="3" Direction="270" Opacity="0.22" />
+                        </Border.Effect>
+                        <StackPanel>
+                            <TextBlock Text="SORT BY" Style="{StaticResource Text.SectionHeader}" Margin="12,2,0,6" />
+                            <ItemsControl ItemsSource="{Binding SortOptions}" Focusable="False">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type vm:SortChoiceViewModel}">
+                                        <RadioButton Style="{StaticResource NavItem}" GroupName="SortOptions" Margin="0,1" MinHeight="30"
+                                                     IsChecked="{Binding IsSelected, Mode=TwoWay}" Content="{Binding Label}"
+                                                     AutomationProperties.Name="{Binding Label, StringFormat=Sort by {0}}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+                </Popup>
+            </Grid>
 
             <!-- Category filter chips -->
             <ItemsControl ItemsSource="{Binding CategoryChips}" Margin="0,12,0,0" Focusable="False"
@@ -142,6 +183,14 @@
                                           CommandParameter="{Binding}">
                                     <MenuItem.Icon>
                                         <TextBlock Style="{StaticResource Icon}" Text="&#xE74D;" FontSize="14" />
+                                    </MenuItem.Icon>
+                                </MenuItem>
+                                <MenuItem Header="Share as ZIP&#x2026; (Beta)"
+                                          Visibility="{Binding CanShare, Converter={StaticResource BoolToVisibility}}"
+                                          Command="{Binding PlacementTarget.Tag.ShareCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                          CommandParameter="{Binding}">
+                                    <MenuItem.Icon>
+                                        <TextBlock Style="{StaticResource Icon}" Text="&#xE72D;" FontSize="14" />
                                     </MenuItem.Icon>
                                 </MenuItem>
                                 <MenuItem Header="Remove from Font Vault&#x2026;"

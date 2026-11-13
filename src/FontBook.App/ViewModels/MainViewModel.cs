@@ -10,6 +10,7 @@ using FontBook.Core.Data;
 using FontBook.Core.Library;
 using FontBook.Core.Models;
 using FontBook.Core.Services;
+using FontBook.Core.Sharing;
 using FontBook.Core.Vault;
 using Microsoft.Extensions.Logging;
 
@@ -33,6 +34,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly IFontVault _vault;
     private readonly IFilePickerService _filePicker;
     private readonly IFontInstallationService _installer;
+    private readonly IFontSharingService _sharing;
+    private readonly IShellService _shell;
     private readonly ILogger<MainViewModel> _logger;
     private CancellationTokenSource? _notificationTimer;
     private readonly Dictionary<string, FontFamilyViewModel> _familyViewModels = new(StringComparer.Ordinal);
@@ -52,8 +55,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         IFontVault vault,
         IFilePickerService filePicker,
         IFontInstallationService installer,
+        FontMakerViewModel fontMaker,
+        IFontSharingService sharing,
+        IShellService shell,
         ILogger<MainViewModel> logger)
     {
+        _sharing = sharing;
+        _shell = shell;
+        FontMaker = fontMaker;
+        FontMaker.FontCreated += OnFontMakerFontCreated;
         _vault = vault;
         _filePicker = filePicker;
         _installer = installer;
@@ -74,6 +84,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public SidebarViewModel Sidebar { get; }
 
     public PreviewViewModel Preview { get; }
+
+    /// <summary>The Font Maker (beta) page.</summary>
+    public FontMakerViewModel FontMaker { get; }
+
+    /// <summary>True when the Font Maker page is shown instead of the font list and preview.</summary>
+    [ObservableProperty]
+    private bool _isFontMakerOpen;
 
     /// <summary>True while the font list shows temporary sample data instead of real fonts.</summary>
     public bool IsSampleData => _library.IsSampleData;
@@ -151,6 +168,25 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private double _fontListWidth = DefaultFontListWidth;
 
+    /// <summary>How the font list is ordered (remembered between launches).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SortLabel))]
+    private FontSortOrder _sortOrder = FontSortOrder.NameAscending;
+
+    /// <summary>Short label on the Sort button, e.g. "Newest".</summary>
+    public string SortLabel => SortOrder.ShortName();
+
+    /// <summary>Options in the Sort menu.</summary>
+    public ObservableCollection<SortChoiceViewModel> SortOptions { get; } = [];
+
+    /// <summary>Whether the Sort menu is open (closes after a choice).</summary>
+    [ObservableProperty]
+    private bool _isSortMenuOpen;
+
+    /// <summary>Whether the preview's category menu is open (closes after a choice).</summary>
+    [ObservableProperty]
+    private bool _isCategoryMenuOpen;
+
     /// <summary>Loads settings, fonts, favorites and collections. Called once when the window opens.</summary>
     public async Task InitializeAsync()
     {
@@ -218,6 +254,35 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
+    partial void OnSortOrderChanged(FontSortOrder value)
+    {
+        foreach (var family in _familyViewModels.Values)
+        {
+            family.ShowAddedDate = value.IsByDate();
+        }
+
+        if (_isInitialized)
+        {
+            _settingsWriter.Schedule(SettingKeys.SortOrder, value.ToString());
+            RefreshList();
+        }
+    }
+
+    private void RebuildSortOptions()
+    {
+        SortOptions.Clear();
+        foreach (var order in FontSorting.All)
+        {
+            SortOptions.Add(new SortChoiceViewModel(order, order == SortOrder, OnSortOptionSelected));
+        }
+    }
+
+    private void OnSortOptionSelected(SortChoiceViewModel option)
+    {
+        IsSortMenuOpen = false;
+        SortOrder = option.Order;
+    }
+
     partial void OnFontListWidthChanged(double value)
     {
         if (_isInitialized)
@@ -256,19 +321,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             var result = await _vault.ImportAsync(paths);
             if (result.Imported.Count > 0)
             {
-                await _library.RefreshVaultAsync();
-                SyncFamilyViewModels();
-                SearchText = string.Empty;
-                Sidebar.Select(Sidebar.ImportedItem);
-                Sidebar.UpdateCounts();
-                RefreshList();
-
-                // Show the first newly imported family.
-                var first = VisibleFamilies.FirstOrDefault(f => result.ImportedFamilyNames.Contains(f.FamilyName, StringComparer.OrdinalIgnoreCase));
-                if (first is not null)
-                {
-                    SelectedFamily = first;
-                }
+                await ShowImportedFamiliesAsync(result);
             }
 
             ShowNotification(DescribeImport(result), isWarning: result.Failed.Count > 0 && result.Imported.Count == 0);
@@ -281,6 +334,77 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         finally
         {
             IsImporting = false;
+            BusyText = null;
+        }
+    }
+
+    /// <summary>Reloads the Vault, opens Imported Fonts and selects the first newly imported family.</summary>
+    private async Task ShowImportedFamiliesAsync(VaultImportResult result)
+    {
+        await _library.RefreshVaultAsync();
+        SyncFamilyViewModels();
+        SearchText = string.Empty;
+        _categoryFilter = null;
+        Sidebar.Select(Sidebar.ImportedItem);
+        Sidebar.UpdateCounts();
+        RefreshList();
+
+        var first = VisibleFamilies.FirstOrDefault(f => result.ImportedFamilyNames.Contains(f.FamilyName, StringComparer.OrdinalIgnoreCase));
+        if (first is not null)
+        {
+            SelectedFamily = first;
+        }
+    }
+
+    private async void OnFontMakerFontCreated(object? sender, VaultImportResult result)
+    {
+        try
+        {
+            await ShowImportedFamiliesAsync(result);
+            var name = result.ImportedFamilyNames.Count > 0 ? result.ImportedFamilyNames[0] : "Your font";
+            ShowNotification($"Created \"{name}\" and added it to your Font Vault. Use Install to make it available in other apps.", isWarning: false);
+            FontMaker.StartOverCommand.Execute(null);
+        }
+        catch (Exception ex) when (ex is IOException or System.Data.Common.DbException)
+        {
+            _logger.LogError(ex, "Showing the created font failed");
+            _dialogs.ShowError("Font created, but couldn't be shown", ex.Message);
+        }
+    }
+
+    /// <summary>Share (beta): saves the family's font files as a ZIP and shows it in File Explorer.</summary>
+    [RelayCommand]
+    private async Task ShareAsync(FontFamilyViewModel? family)
+    {
+        if (family is not { CanShare: true } || BusyText is not null)
+        {
+            return; // system fonts are licensed with Windows and can't be shared
+        }
+
+        var invalid = Path.GetInvalidFileNameChars();
+        var suggested = new string([.. family.FamilyName.Select(c => invalid.Contains(c) ? '_' : c)]) + ".zip";
+        if (_filePicker.PickShareZipLocation(suggested) is not { } zipPath)
+        {
+            return;
+        }
+
+        BusyText = $"Packing \"{family.FamilyName}\"…";
+        try
+        {
+            var result = await _sharing.CreateZipAsync(family.Model, zipPath);
+            ShowNotification(
+                $"Saved {Path.GetFileName(result.ZipPath)} ({Plural(result.FileCount, "font file")}). Only share fonts you have the right to share."
+                + (result.HasLicenseInfo ? " License details are in \"About these fonts.txt\"." : string.Empty),
+                isWarning: false);
+            _shell.ShowInFolder(result.ZipPath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            _logger.LogError(ex, "Sharing {Family} failed", family.FamilyName);
+            _dialogs.ShowError("Couldn't share font", ex.Message);
+        }
+        finally
+        {
             BusyText = null;
         }
     }
@@ -502,6 +626,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             vm.IsAlsoInstalled = vm.IsImported && installedNames.Contains(vm.FamilyName);
             vm.Category = _library.GetCategory(vm.Model);
             vm.IsCategoryManual = _library.IsCategoryManual(vm.Key);
+            vm.ShowAddedDate = SortOrder.IsByDate();
         }
 
         if (SelectedFamily is not null && !_familyViewModels.ContainsKey(SelectedFamily.Key))
@@ -594,8 +719,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         var navigation = Sidebar.SelectedItem;
+        IsFontMakerOpen = navigation.Page == AppPage.FontMaker;
+        if (IsFontMakerOpen)
+        {
+            return;
+        }
+
         var scope = navigation.Scope;
-        var results = _library.Query(scope, SearchText, _categoryFilter)
+        var results = _library.Query(scope, SearchText, _categoryFilter, SortOrder)
             .Select(f => _familyViewModels[f.Key])
             .ToList();
         RebuildCategoryChips(scope);
@@ -682,6 +813,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private async void OnCategoryOptionSelected(CategoryChoiceViewModel option)
     {
+        IsCategoryMenuOpen = false;
         if (SelectedFamily is not { } family)
         {
             return;
@@ -778,6 +910,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         SidebarWidth = await ReadDoubleAsync(SettingKeys.SidebarWidth, DefaultSidebarWidth, 180, 360);
         FontListWidth = await ReadDoubleAsync(SettingKeys.FontListWidth, DefaultFontListWidth, 220, 520);
+        SortOrder = Enum.TryParse<FontSortOrder>(await _settings.GetAsync(SettingKeys.SortOrder), out var sort) ? sort : FontSortOrder.NameAscending;
+        RebuildSortOptions();
     }
 
     private async Task<double> ReadDoubleAsync(string key, double fallback, double min, double max)

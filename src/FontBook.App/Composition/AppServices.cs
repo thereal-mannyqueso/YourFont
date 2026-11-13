@@ -1,4 +1,5 @@
 using FontBook.App.Services.Dialogs;
+using FontBook.App.Services.FontMaker;
 using FontBook.App.Services.Rendering;
 using FontBook.App.Services.Settings;
 using FontBook.App.Services.Theming;
@@ -37,12 +38,16 @@ public static class AppServices
         services.AddSingleton<IThemeService, ThemeService>();
         services.AddSingleton<IDialogService, DialogService>();
         services.AddSingleton<IFilePickerService, FilePickerService>();
+        services.AddSingleton<IShellService, ShellService>();
         services.AddSingleton<IFontPreviewProvider, WpfFontPreviewProvider>();
         services.AddSingleton<DeferredSettingsWriter>();
+        services.AddSingleton<ITemplateRenderer, TemplateRenderer>();
+        services.AddSingleton<IScanImageLoader, ScanImageLoader>();
 
         // View models and windows.
         services.AddSingleton<SidebarViewModel>();
         services.AddSingleton<PreviewViewModel>();
+        services.AddSingleton<FontMakerViewModel>();
         services.AddSingleton<MainViewModel>();
         services.AddSingleton<MainWindow>();
 

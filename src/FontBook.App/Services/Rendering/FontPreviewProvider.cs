@@ -41,6 +41,16 @@ public sealed class WpfFontPreviewProvider : IFontPreviewProvider
 
         // The name inside the file identifies the face (important for .ttc collections holding several families).
         var nameInFile = face.FileFamilyName ?? family.FamilyName;
+
+        if (family.Source == FontSource.Imported && Path.GetDirectoryName(path) is { } vaultFolder)
+        {
+            // Font Vault copies are resolved through their folder ("./#Name"). WPF's single-file lookup
+            // rejects some valid fonts (including ones made by Font Maker) and silently falls back to
+            // Segoe UI, while the folder lookup reads them correctly. The Vault folder only holds Vault copies.
+            var folderUri = new Uri(vaultFolder.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar);
+            return Cached($"{vaultFolder}|{nameInFile}", () => new FontFamily(folderUri, "./#" + nameInFile));
+        }
+
         return Cached($"{path}|{nameInFile}", () => new FontFamily(new Uri(path), "#" + nameInFile));
     }
 

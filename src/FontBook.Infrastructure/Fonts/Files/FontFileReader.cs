@@ -27,7 +27,10 @@ public sealed record FontFaceData(
     bool IsItalic,
     int IbmFamilyClass = 0,
     IReadOnlyList<byte>? Panose = null,
-    bool IsFixedPitch = false);
+    bool IsFixedPitch = false,
+    string? Copyright = null,
+    string? License = null,
+    string? LicenseUrl = null);
 
 /// <summary>
 /// Minimal, read-only OpenType/TrueType reader (TTF, OTF, TTC/OTC collections).
@@ -157,7 +160,10 @@ public static class FontFileReader
             italic,
             familyClass,
             panose,
-            fixedPitch);
+            fixedPitch,
+            names.GetValueOrDefault(0),
+            names.GetValueOrDefault(13),
+            names.GetValueOrDefault(14));
     }
 
     /// <summary>Picks the best string for each name ID: Windows English first, then any Windows/Unicode, then Mac Roman.</summary>
@@ -186,7 +192,7 @@ public static class FontFileReader
             var nameId = BinaryPrimitives.ReadUInt16BigEndian(record[6..]);
             var length = BinaryPrimitives.ReadUInt16BigEndian(record[8..]);
             var offset = BinaryPrimitives.ReadUInt16BigEndian(record[10..]);
-            if (nameId is not (1 or 2 or 16 or 17 or 21))
+            if (nameId is not (0 or 1 or 2 or 13 or 14 or 16 or 17 or 21))
             {
                 continue;
             }

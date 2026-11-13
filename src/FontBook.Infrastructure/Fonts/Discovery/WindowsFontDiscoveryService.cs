@@ -86,6 +86,36 @@ public sealed class WindowsFontDiscoveryService(IInstalledFontFileSource fileSou
                 var category = FontClassifier.Classify(new FontClassificationHints(
                     reference.FamilyName, reference.IbmFamilyClass, reference.Panose ?? [], reference.IsFixedPitch));
 
-                return new FontFamilyInfo(group.First().Data.FamilyName, group.Key.Source, styles) { DetectedCategory = category };
+                return new FontFamilyInfo(group.First().Data.FamilyName, group.Key.Source, styles)
+                {
+                    DetectedCategory = category,
+                    AddedAt = NewestFileDate(group.Select(f => f.Data.FilePath)),
+                };
             })];
+
+    /// <summary>
+    /// When the family arrived on this PC: the newest creation time among its files (installing a font
+    /// copies it, so the copy's creation time is the install/download date). Null if unreadable.
+    /// </summary>
+    private static DateTimeOffset? NewestFileDate(IEnumerable<string> paths)
+    {
+        DateTimeOffset? newest = null;
+        foreach (var path in paths.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            try
+            {
+                var created = new DateTimeOffset(File.GetCreationTimeUtc(path), TimeSpan.Zero);
+                if (created.Year > 1601 && (newest is null || created > newest))
+                {
+                    newest = created;
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+            {
+                // Leave the date unknown for files we can't inspect.
+            }
+        }
+
+        return newest;
+    }
 }

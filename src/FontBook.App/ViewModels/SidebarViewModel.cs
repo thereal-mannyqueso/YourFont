@@ -38,6 +38,7 @@ public sealed partial class SidebarViewModel : ObservableObject
         ImportedItem = new(new LibraryScope(LibraryScopeKind.ImportedFonts), "Imported Fonts", Glyphs.Import, Select);
         CustomCollectionsItem = new(new LibraryScope(LibraryScopeKind.AnyCollection), "Custom Collections", Glyphs.Library, Select);
         RecentlyAddedItem = new(new LibraryScope(LibraryScopeKind.RecentlyAdded), "Recently Added", Glyphs.Recent, Select);
+        FontMakerItem = new(default, "Font Maker", Glyphs.Pen, Select, AppPage.FontMaker);
 
         _selectedItem = LibraryItems[0];
         Select(_selectedItem);
@@ -57,13 +58,16 @@ public sealed partial class SidebarViewModel : ObservableObject
 
     public NavigationItemViewModel RecentlyAddedItem { get; }
 
+    /// <summary>"Font Maker (Beta)" under CREATE.</summary>
+    public NavigationItemViewModel FontMakerItem { get; }
+
     public ObservableCollection<NavigationItemViewModel> Collections { get; } = [];
 
     [ObservableProperty]
     private NavigationItemViewModel _selectedItem;
 
     private IEnumerable<NavigationItemViewModel> AllItems =>
-        LibraryItems.Concat([ImportedItem, CustomCollectionsItem]).Concat(Collections).Append(RecentlyAddedItem);
+        LibraryItems.Concat([ImportedItem, CustomCollectionsItem]).Concat(Collections).Append(RecentlyAddedItem).Append(FontMakerItem);
 
     public async Task LoadAsync()
     {
@@ -78,7 +82,7 @@ public sealed partial class SidebarViewModel : ObservableObject
     /// <summary>Refreshes the number shown next to each entry.</summary>
     public void UpdateCounts()
     {
-        foreach (var item in AllItems)
+        foreach (var item in AllItems.Where(i => i.Page == AppPage.Library))
         {
             item.Count = _library.Count(item.Scope);
         }

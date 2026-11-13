@@ -36,7 +36,7 @@ public static class FontClassifier
     private static readonly string[] MonoWords = ["mono", "code", "console", "typewriter", "courier", "terminal", "fixed"];
     private static readonly string[] ScriptWords = ["script", "hand", "brush", "signature", "calligraph", "cursive", "marker", "ink free", "print"];
     // Well-known family names, for fonts whose files carry no classification.
-    private static readonly string[] KnownSans = ["helvetica", "gotham", "futura", "avenir", "inter", "roboto", "montserrat", "swiss", "segoe ui variable", "proxima"];
+    private static readonly string[] KnownSans = ["helvetica", "gotham", "futura", "avenir", "inter", "roboto", "montserrat", "swiss", "segoe ui variable", "proxima", "sf pro", "sf compact"];
     private static readonly string[] KnownSerif = ["didot", "walbaum", "bodoni", "garamond", "baskerville", "caslon", "sitka", "times", "playfair"];
     private static readonly string[] KnownDisplay = ["minecraft", "mojang", "license plate", "nightmare"];
 

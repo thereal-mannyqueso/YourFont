@@ -80,6 +80,21 @@ public sealed partial class FontFamilyViewModel : ObservableObject
 
     public string CategoryName => Category.DisplayName();
 
-    /// <summary>Second line in the font list, e.g. "4 styles · Serif".</summary>
-    public string ListCaption => $"{StyleCountText}  ·  {Category.ShortName()}";
+    /// <summary>True while the list is sorted by date, so each row shows when the font was added.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ListCaption))]
+    private bool _showAddedDate;
+
+    /// <summary>"Added Nov 9, 2026", or "Date unknown".</summary>
+    public string AddedDateText => Model.AddedAt is { } added
+        ? "Added " + added.ToLocalTime().ToString("MMM d, yyyy", System.Globalization.CultureInfo.CurrentCulture)
+        : "Date unknown";
+
+    /// <summary>Second line in the font list, e.g. "4 styles · Serif" (plus the date when sorting by date).</summary>
+    public string ListCaption => ShowAddedDate
+        ? $"{StyleCountText}  ·  {AddedDateText}"
+        : $"{StyleCountText}  ·  {Category.ShortName()}";
+
+    /// <summary>System fonts are licensed with Windows and can't be shared.</summary>
+    public bool CanShare => Model.Source != FontSource.System;
 }

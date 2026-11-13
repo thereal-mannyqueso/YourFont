@@ -168,6 +168,55 @@ show only their default style for now; named instances need the DirectWrite rend
 - **UI:** filter chips (`CategoryChoiceViewModel`, selection-driven like the sidebar) combine with the current section and
   search. If a manual change moves the selected font out of the active filter, the filter resets to All so it stays visible.
 
+## Sorting
+
+`Core/Library/FontSorting.Sort` orders families for every `FontSortOrder`, always breaking ties by name so the order is
+stable. `FontLibraryService.Query` takes the sort (default: name; Recently Added: newest). `FontFamilyInfo.AddedAt` is the
+Vault import time for imported fonts and, for installed fonts, the newest file *creation* time in the family (installing
+copies the file, so that is effectively the install/download date). Unknown dates sort last. The choice is stored under
+`list.sortOrder`.
+
+## Share as ZIP (beta)
+
+`IFontSharingService` / `Infrastructure/Sharing/FontSharingService` writes `<Family>/<files>` plus
+`<Family>/About these fonts.txt` into a temporary `.zip.tmp`, then moves it into place (no half-written ZIPs). Installed
+fonts keep their file names; Vault copies (hash-named) become "Family Style.ext". Copyright/license text comes from name
+IDs 0, 13 and 14, which `FontFileReader` now reads. System fonts are refused in the service, and the UI hides Share for
+them: they're licensed with Windows and not for redistribution.
+
+## Font Maker (beta)
+
+Pipeline: **template → scan → boxes → outlines → .ttf → Font Vault.**
+
+- `Core/FontMaker/FontTemplateLayout` defines the page in "template pixels" (US Letter at 300 dpi): four solid corner
+  markers, an 8×10 grid of boxes, and a baseline at 70% of each box. The app's `TemplateRenderer` draws it from these
+  numbers and `TemplateScanReader` reads scans with the same numbers, so they can't drift apart.
+- `TemplateScanReader`: Otsu threshold → find solid square blobs (on a downscaled copy) → pick the most extreme one
+  in each diagonal direction → 4-point `PerspectiveTransform` (handles shift, scale, rotation, mild perspective) →
+  sample each box with a 10px inset (so the printed border is never traced) → remove specks and border slivers.
+  Empty boxes (< 40 ink pixels) are skipped.
+- `GlyphTracer`: directed pixel-edge tracing (ink always on the right, so outer shapes and holes get opposite
+  directions automatically; at diagonal touches it turns right to keep shapes separate) → Ramer–Douglas–Peucker
+  simplification → every point becomes a quadratic *off-curve* point, so TrueType draws a smooth curve through the
+  midpoints. Box height = 1250 font units (ascent 875, descent 375, 1000 units per em), 35-unit side bearings.
+- `Infrastructure/FontMaker/TrueTypeFontBuilder` writes the ten required tables (cmap format 4, glyf/loca, OS/2 with
+  "Script" class + handwritten PANOSE, etc.) and the checksum adjustment. `FontMakerService` writes to a temp folder,
+  imports through the normal Vault import, and refuses a name already in the Vault.
+- Tested end-to-end with a simulated scan (letters drawn into the template, tilted 1.5°, scaled 80%) that must yield
+  a font WPF loads with every character.
+
+**Known quirks:** WPF's single-file lookup (`new FontFamily(fileUri, "#Name")`) doesn't find Font Maker fonts, although
+WPF's `GlyphTypeface` loads them and the folder lookup finds them. Vault fonts are therefore drawn through their folder.
+The root cause is not known yet; it could hint at something stricter renderers also dislike. Installing a Font Maker
+font in Windows hasn't been verified.
+
+## Vault storage layout
+
+Each Vault copy lives in its own folder: `Vault\<sha256>\<sha256>.ttf`. WPF caches a font folder's contents for the
+whole session. When a removed font and a newly added font with the same family name shared one folder, DirectWrite
+crashed with a stack overflow. One folder per file (content-addressed) means a folder's contents never change while
+cached. `CleanUpAsync` moves files from the older flat layout and deletes unreferenced folders.
+
 ## Installation (Milestone 3)
 
 Implemented in `Infrastructure/Fonts/Installation/UserFontInstaller` behind `IUserFontRegistry` and `IFontResourceApi`

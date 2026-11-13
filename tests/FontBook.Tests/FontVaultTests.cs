@@ -41,7 +41,7 @@ public sealed class FontVaultTests : IDisposable
         Assert.Equal(["Georgia"], result.ImportedFamilyNames);
         Assert.True(File.Exists(original));
         Assert.Equal(hashBefore, SHA256.HashData(File.ReadAllBytes(original)));
-        var copy = Assert.Single(Directory.GetFiles(_db.Paths.VaultDirectory));
+        var copy = Assert.Single(VaultFiles());
         Assert.Equal(hashBefore, SHA256.HashData(File.ReadAllBytes(copy)));
     }
 
@@ -56,7 +56,7 @@ public sealed class FontVaultTests : IDisposable
 
         Assert.Empty(second.Imported);
         Assert.Equal(["my-arial-copy.ttf"], second.Duplicates);
-        Assert.Single(Directory.GetFiles(_db.Paths.VaultDirectory));
+        Assert.Single(VaultFiles());
     }
 
     [Fact]
@@ -71,7 +71,7 @@ public sealed class FontVaultTests : IDisposable
 
         Assert.Empty(result.Imported);
         Assert.Equal(3, result.Failed.Count);
-        Assert.Empty(Directory.GetFiles(_db.Paths.VaultDirectory));
+        Assert.Empty(VaultFiles());
     }
 
     [Fact]
@@ -107,7 +107,7 @@ public sealed class FontVaultTests : IDisposable
         Assert.True(File.Exists(original));
         Assert.True(File.Exists(Path.Combine(Fonts, "georgia.ttf")));
         Assert.Equal(["Arial"], (await _vault.GetFamiliesAsync()).Select(f => f.FamilyName));
-        Assert.Single(Directory.GetFiles(_db.Paths.VaultDirectory));
+        Assert.Single(VaultFiles());
     }
 
     [Fact]
@@ -130,7 +130,7 @@ public sealed class FontVaultTests : IDisposable
         await _vault.CleanUpAsync();
 
         Assert.False(File.Exists(orphan));
-        Assert.Single(Directory.GetFiles(_db.Paths.VaultDirectory));
+        Assert.Single(VaultFiles());
     }
 
     [Fact]
@@ -156,6 +156,39 @@ public sealed class FontVaultTests : IDisposable
         await library.RefreshVaultAsync();
         Assert.Empty(library.Query(new LibraryScope(LibraryScopeKind.ImportedFonts)));
     }
+
+    [Fact]
+    public async Task EachCopyLivesInItsOwnFolder_AndRemovalLeavesNoEmptyFolders()
+    {
+        await _vault.ImportAsync([Download("georgia.ttf"), Download("arial.ttf")]);
+
+        var folders = Directory.GetDirectories(_db.Paths.VaultDirectory);
+        Assert.Equal(2, folders.Length);
+        Assert.All(folders, f => Assert.Single(Directory.GetFiles(f)));
+
+        var georgia = (await _vault.GetFamiliesAsync()).Single(f => f.FamilyName == "Georgia");
+        await _vault.RemoveFamilyAsync(georgia);
+
+        Assert.Single(Directory.GetDirectories(_db.Paths.VaultDirectory));
+    }
+
+    [Fact]
+    public async Task CleanUp_MovesFilesFromTheOldFlatLayout()
+    {
+        await _vault.ImportAsync([Download("georgia.ttf")]);
+        var current = Assert.Single(VaultFiles());
+        var legacy = Path.Combine(_db.Paths.VaultDirectory, Path.GetFileName(current));
+        File.Move(current, legacy); // simulate a Vault written by an older FontBook
+        Directory.Delete(Path.GetDirectoryName(current)!);
+
+        await _vault.CleanUpAsync();
+
+        Assert.False(File.Exists(legacy));
+        Assert.True(File.Exists(current));
+        Assert.Equal(["Georgia"], (await _vault.GetFamiliesAsync()).Select(f => f.FamilyName));
+    }
+
+    private string[] VaultFiles() => Directory.GetFiles(_db.Paths.VaultDirectory, "*", SearchOption.AllDirectories);
 
     private string Download(string systemFont, string? asName = null)
     {

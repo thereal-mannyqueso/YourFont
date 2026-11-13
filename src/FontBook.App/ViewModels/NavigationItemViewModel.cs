@@ -3,7 +3,17 @@ using FontBook.Core.Library;
 
 namespace FontBook.App.ViewModels;
 
-/// <summary>One entry in the sidebar (a library section or a custom collection).</summary>
+/// <summary>What the content area shows for a sidebar entry.</summary>
+public enum AppPage
+{
+    /// <summary>The font list and preview, filtered by the entry's <see cref="NavigationItemViewModel.Scope"/>.</summary>
+    Library,
+
+    /// <summary>The Font Maker (beta) tool.</summary>
+    FontMaker,
+}
+
+/// <summary>One entry in the sidebar (a library section, a custom collection, or a tool page).</summary>
 public sealed partial class NavigationItemViewModel : ObservableObject
 {
     private readonly Action<NavigationItemViewModel> _onSelected;
@@ -13,15 +23,19 @@ public sealed partial class NavigationItemViewModel : ObservableObject
     /// technology (UI Automation). Driving navigation from the selection state, instead of
     /// from a click command, keeps all of those input methods working the same way.
     /// </param>
-    public NavigationItemViewModel(LibraryScope scope, string title, string glyph, Action<NavigationItemViewModel> onSelected)
+    public NavigationItemViewModel(LibraryScope scope, string title, string glyph, Action<NavigationItemViewModel> onSelected, AppPage page = AppPage.Library)
     {
         Scope = scope;
+        Page = page;
         _title = title;
         Glyph = glyph;
         _onSelected = onSelected;
     }
 
+    /// <summary>Which fonts a Library page shows. Not used by tool pages.</summary>
     public LibraryScope Scope { get; }
+
+    public AppPage Page { get; }
 
     /// <summary>Segoe Fluent Icons code point.</summary>
     public string Glyph { get; }

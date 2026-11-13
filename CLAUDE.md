@@ -58,6 +58,11 @@ dotnet run --project src/FontBook.App # launch the app
 - **WPF font names:** when loading a face from a file (`new FontFamily(uri, "#Name")`), the name must be the WWS (ID 21)
   or typographic (ID 16) family name. A wrong name doesn't throw, it silently renders Segoe UI. Keep the
   `RenderName_MatchesWpf_ForEveryInstalledFont` test passing. Note: Segoe UI *is* the fallback, so it can hide this bug.
+- **Vault fonts render through their own folder** (`Vault\<hash>\`, `new FontFamily(folderUri, "./#Name")`). Never put
+  two Vault files in one folder: WPF caches folder contents per session, and a changed folder crashed DirectWrite
+  (stack overflow in dwrite.dll). The single-file URI form also silently misses Font Maker fonts.
+- WPF objects in tests must be created on an STA thread (`Sta.Run` in `FontMakerTests.cs`).
+- PowerShell variables are case-insensitive (`$w` overwrites `$W`), which bit a test script once.
 - WPF projects (and the test project, which uses WPF) don't import `System.IO` implicitly. `src/FontBook.App/GlobalUsings.cs` adds it.
 - `SupportedOSPlatformVersion` can't exceed 7.0 with `net10.0-windows` unless you target a Windows SDK TFM. Use runtime checks (`WindowEffects.IsMicaSupported`).
 

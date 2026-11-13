@@ -17,6 +17,7 @@ internal static class Glyphs
     public static readonly string Recent = Icon(0xE823);
     public static readonly string Folder = Icon(0xE8B7);
     public static readonly string Search = Icon(0xE721);
+    public static readonly string Pen = Icon(0xEDC6);
 
     private static string Icon(int codePoint) => char.ConvertFromUtf32(codePoint);
 }

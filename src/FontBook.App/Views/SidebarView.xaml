@@ -130,6 +130,24 @@
             <ItemsControl ItemsSource="{Binding Collections}" ItemTemplate="{StaticResource CollectionItemTemplate}" Focusable="False" />
 
             <ContentControl Content="{Binding RecentlyAddedItem}" ContentTemplate="{StaticResource NavItemTemplate}" Focusable="False" />
+
+            <TextBlock Text="CREATE" Style="{StaticResource Text.SectionHeader}" Margin="20,18,0,6" />
+            <RadioButton Style="{StaticResource NavItem}" DataContext="{Binding FontMakerItem}"
+                         IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                         AutomationProperties.Name="Font Maker (Beta)">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Style="{StaticResource Icon}" Text="{Binding Glyph}" FontSize="15" Foreground="{DynamicResource AccentBrush}" />
+                    <TextBlock Grid.Column="1" Text="{Binding Title}" Margin="12,0,8,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                    <Border Grid.Column="2" Style="{StaticResource Badge}" Padding="6,1,6,2">
+                        <TextBlock Text="BETA" FontSize="9" />
+                    </Border>
+                </Grid>
+            </RadioButton>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

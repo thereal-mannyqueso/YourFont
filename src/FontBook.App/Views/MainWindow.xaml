@@ -163,6 +163,11 @@
                     <ColumnDefinition Width="*" MinWidth="360" />
                 </Grid.ColumnDefinitions>
 
+                <!-- Font Maker (beta) replaces the list and preview while it's selected. -->
+                <views:FontMakerView Grid.ColumnSpan="2" Panel.ZIndex="2" DataContext="{Binding FontMaker}"
+                                     Background="{DynamicResource LayerBackgroundBrush}"
+                                     Visibility="{Binding DataContext.IsFontMakerOpen, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}" />
+
                 <views:FontListView />
 
                 <Border Grid.Column="1" BorderThickness="1,0,0,0" BorderBrush="{DynamicResource DividerBrush}">

@@ -1,7 +1,11 @@
 using FontBook.Core.Data;
 using FontBook.Core.Services;
 using FontBook.Infrastructure.Database;
+using FontBook.Core.FontMaker;
+using FontBook.Core.Sharing;
+using FontBook.Infrastructure.Sharing;
 using FontBook.Core.Vault;
+using FontBook.Infrastructure.FontMaker;
 using FontBook.Infrastructure.Fonts.Discovery;
 using FontBook.Infrastructure.Fonts.Installation;
 using FontBook.Infrastructure.Vault;
@@ -40,6 +44,13 @@ public static class InfrastructureServiceCollectionExtensions
             sp.GetRequiredService<IUserFontRegistry>(),
             sp.GetRequiredService<IFontResourceApi>(),
             sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<UserFontInstaller>>()));
+
+        // Share (beta): font family → ZIP file.
+        services.AddSingleton<IFontSharingService, FontSharingService>();
+
+        // Font Maker (beta): handwriting template → TrueType font in the Vault.
+        services.AddSingleton<IFontFileBuilder, TrueTypeFontBuilder>();
+        services.AddSingleton<IFontMakerService, FontMakerService>();
 
         // Font Vault (imported copies, kept apart from installed fonts).
         services.AddSingleton<SqliteVaultRepository>();

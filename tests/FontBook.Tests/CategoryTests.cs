@@ -42,6 +42,7 @@ public sealed class FontClassifierTests
     [InlineData("JetBrains Mono", FontCategory.Monospace)]
     [InlineData("Fira Code", FontCategory.Monospace)]
     [InlineData("Helvetica", FontCategory.SansSerif)]
+    [InlineData("SF Pro Display", FontCategory.SansSerif)] // "Display" here is a size optimization, not a style
     [InlineData("Didot", FontCategory.Serif)]
     [InlineData("Minecraft", FontCategory.Display)]
     [InlineData("Dancing Script", FontCategory.Script)]

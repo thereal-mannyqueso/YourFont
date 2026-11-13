@@ -56,6 +56,17 @@ Deleting that folder resets FontBook to a fresh state. It never touches your ins
   Display & Fun, Symbol or Other. FontBook detects this from data inside the font file (IBM font class, PANOSE,
   fixed-pitch flag), falling back to name clues. **Filter chips** above the list combine with any section
   (e.g. User Fonts + Script). Click the category next to a font's name in the preview to change it; your choice is saved.
+- **Sorting:** the Sort button above the list orders fonts by Name (A–Z / Z–A), Date Added (newest / oldest),
+  Most Styles, or Category. Date Added is the import date for Vault fonts and the date the font file arrived on this PC
+  for installed fonts; when sorting by date each row shows it. The choice is remembered.
+- **Share as ZIP (Beta):** the Share button (preview header or right-click) saves a family's font files plus an
+  "About these fonts.txt" (styles, copyright and license text from the fonts) as a ZIP, then shows it in File Explorer.
+  Font files are only read. Windows system fonts can't be shared (they're licensed with Windows).
+- **Font Maker (Beta)** — sidebar → CREATE: print a one-page template (A–Z, a–z, 0–9, 18 punctuation marks),
+  fill it in with a dark pen, scan or photograph it, and FontBook turns it into a TrueType font in your Font Vault.
+  It finds the four corner squares to straighten the page, traces each box into smooth outlines, and writes the
+  `.ttf` itself (no extra libraries). *Beta limits:* one Regular style, automatic spacing, no kerning, the page must be
+  upright, and real paper scans haven't been tried yet (tested with a simulated scan).
 - **Install / uninstall for your account** (Milestone 3): **Install** on Vault fonts copies the font into your
   per-user fonts folder, registers it under `HKCU` and notifies apps. **Uninstall…** on User Fonts asks first and can
   keep a copy in the Vault. System fonts can never be uninstalled from FontBook. *Status: unit-tested with fakes;
@@ -85,12 +96,14 @@ src/
     Library/                   FontLibraryService: favorites, collection membership, filtering
     Collections/               CollectionService: naming and validation rules
     Classification/            FontClassifier: automatic style categories
+    FontMaker/                 Template layout, scan reader, glyph tracer (Font Maker beta)
     Search/                    FontSearch: search matching rules
   FontBook.Infrastructure/     Implementations of the Core contracts
     Database/                  SQLite connection, schema migrations, repositories
     Fonts/Files/               Read-only OpenType/TrueType name reader
     Fonts/Discovery/           Installed-font discovery (registry list + files)
     Vault/                     Font Vault: import (copy + hash), remove, clean-up
+    FontMaker/                 TrueType font writer, Font Maker service
   FontBook.App/                The WPF desktop application
     Views/                     Windows and user controls (XAML)
     ViewModels/                MVVM view models

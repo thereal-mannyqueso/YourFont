@@ -16,4 +16,5 @@ public static class SettingKeys
     public const string FontListWidth = "layout.fontListWidth";
     public const string PreviewSize = "preview.size";
     public const string SpecimenText = "preview.specimenText";
+    public const string SortOrder = "list.sortOrder";
 }

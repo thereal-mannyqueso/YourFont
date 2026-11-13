@@ -26,7 +26,8 @@ public interface IFontLibraryService
     /// Families in <paramref name="scope"/> that match <paramref name="searchText"/> and, if given,
     /// <paramref name="category"/>, in display order.
     /// </summary>
-    IReadOnlyList<FontFamilyInfo> Query(LibraryScope scope, string? searchText = null, FontCategory? category = null);
+    /// <remarks>Without <paramref name="sort"/>: by name, except Recently Added (newest first).</remarks>
+    IReadOnlyList<FontFamilyInfo> Query(LibraryScope scope, string? searchText = null, FontCategory? category = null, FontSortOrder? sort = null);
 
     int Count(LibraryScope scope);
 
@@ -109,15 +110,13 @@ public sealed class FontLibraryService(
     private void SetFamilies(IEnumerable<FontFamilyInfo> families)
         => _families = [.. families.OrderBy(f => f.FamilyName, StringComparer.CurrentCultureIgnoreCase)];
 
-    public IReadOnlyList<FontFamilyInfo> Query(LibraryScope scope, string? searchText = null, FontCategory? category = null)
+    public IReadOnlyList<FontFamilyInfo> Query(LibraryScope scope, string? searchText = null, FontCategory? category = null, FontSortOrder? sort = null)
     {
-        var inScope = _families.Where(f => IsInScope(f, scope));
-        if (scope.Kind == LibraryScopeKind.RecentlyAdded)
-        {
-            inScope = inScope.OrderByDescending(f => f.AddedAt);
-        }
-
-        return [.. inScope.Where(f => FontSearch.Matches(f, searchText) && (category is null || GetCategory(f) == category))];
+        var matches = _families.Where(f => IsInScope(f, scope)
+                                           && FontSearch.Matches(f, searchText)
+                                           && (category is null || GetCategory(f) == category));
+        var order = sort ?? (scope.Kind == LibraryScopeKind.RecentlyAdded ? FontSortOrder.DateAddedNewest : FontSortOrder.NameAscending);
+        return FontSorting.Sort(matches, order, GetCategory);
     }
 
     public int Count(LibraryScope scope) => _families.Count(f => IsInScope(f, scope));

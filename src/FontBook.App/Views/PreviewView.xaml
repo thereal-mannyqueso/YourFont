@@ -46,10 +46,10 @@
                         <BeginStoryboard Storyboard="{StaticResource FadeIn}" />
                     </EventTrigger>
                 </Grid.Triggers>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
                 <StackPanel>
                     <TextBlock Text="{Binding Preview.Family.FamilyName, NotifyOnTargetUpdated=True}" Style="{StaticResource Text.Title}" />
                     <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
@@ -63,6 +63,7 @@
                         <!-- Category picker -->
                         <ToggleButton x:Name="CategoryToggle" Style="{StaticResource SubtleButton}" Padding="6,2" MinHeight="22" MinWidth="0"
                                       Margin="2,0,0,0" ToolTip="Change category" AutomationProperties.Name="Change category"
+                                      IsChecked="{Binding IsCategoryMenuOpen, Mode=TwoWay}"
                                       IsHitTestVisible="{Binding IsOpen, ElementName=CategoryPopup, Converter={StaticResource InverseBoolean}}">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="{Binding Preview.Family.CategoryName}" FontSize="12" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" />
@@ -95,7 +96,8 @@
                     </StackPanel>
                 </StackPanel>
 
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top" Margin="0,4,0,0">
+                <!-- Actions row (wraps when the pane is narrow) -->
+                <WrapPanel Grid.Row="1" Orientation="Horizontal" Margin="-10,10,0,0">
                     <!-- Favorite -->
                     <Button Style="{StaticResource SubtleButton}" Padding="10,6"
                             Command="{Binding ToggleFavoriteCommand}" CommandParameter="{Binding Preview.Family}"
@@ -183,7 +185,7 @@
                         </StackPanel>
                     </ToggleButton>
                     <Popup x:Name="CollectionsPopup" PlacementTarget="{Binding ElementName=CollectionsToggle}"
-                           Placement="Bottom" HorizontalOffset="-130" VerticalOffset="2"
+                           Placement="Bottom" VerticalOffset="2"
                            IsOpen="{Binding IsChecked, ElementName=CollectionsToggle, Mode=TwoWay}"
                            StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade">
                         <Border Margin="8" Width="270" Padding="6,8" CornerRadius="8"
@@ -211,7 +213,22 @@
                             </StackPanel>
                         </Border>
                     </Popup>
-                </StackPanel>
+
+                    <!-- Share (beta): not for Windows system fonts -->
+                    <Button Style="{StaticResource SubtleButton}" Padding="10,6" Margin="4,0,0,0"
+                            Command="{Binding ShareCommand}" CommandParameter="{Binding Preview.Family}"
+                            Visibility="{Binding Preview.Family.CanShare, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}"
+                            ToolTip="Save this font family as a ZIP to send to someone (Beta). Only share fonts you have the right to share."
+                            AutomationProperties.Name="Share font as ZIP">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource Icon}" Text="&#xE72D;" FontSize="14" />
+                            <TextBlock Text="Share" Margin="8,0,0,0" VerticalAlignment="Center" />
+                            <Border Style="{StaticResource Badge}" Padding="5,0,5,1" Margin="6,0,0,0">
+                                <TextBlock Text="BETA" FontSize="9" />
+                            </Border>
+                        </StackPanel>
+                    </Button>
+                </WrapPanel>
             </Grid>
 
             <!-- ============ Specimen controls ============ -->
